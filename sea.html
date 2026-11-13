@@ -16,7 +16,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 <body>
 <canvas id="c"></canvas>
 <canvas id="g"></canvas>
-<div id="hint">톡 · 쓱 · 꾸욱<small>물결 · 물살 · 꾹 눌러 먹이 주기</small></div>
+<div id="hint">톡 · 쓱 · 꾸욱<small>거품 · 물살 · 꾹 눌러 먹이 주기</small></div>
 <script>
 (()=>{
 const cv=document.getElementById('c'),ctx=cv.getContext('2d',{alpha:false});
@@ -564,8 +564,6 @@ function frame(now){
     case WAT:{
      if(r<=1){ch=r===0?(((c+(tN*4|0))%3)?'~':'^'):(((c*7+(tN*2|0))%5)?'-':'~');col=NT>.5?hsl(215,25,r===0?72:58):hsl(182,75,r===0?82:68);gw=NT>.5&&r===0&&((c*13+(tN*2|0))%9===0);break;}
      if(HL[i]===fid)continue;
-     if(rings.length){let hit=0;const X=(c+.5)*cw,Y=y+chH/2;for(const g of rings){const a=tN-g.t,R=a*230,d=Math.hypot((X-g.x),(Y-g.y)*1.15);if(Math.abs(d-R)<cw*.75){hit=Math.max(hit,1-a/1.8);}}
-      if(hit>0){ch=hit>.65?'o':hit>.35?'~':'.';col=hsl(186,80,40+hit*50);break;}}
      const fi=fIdx((c+.5)*cw,y),cur=Math.min(2,Math.abs(FX[fi])+Math.abs(FY[fi]));
      let cs=0;if(v<.32){cs=Math.abs(Math.sin(c*.35+tN*1.1+Math.sin(r*.4+tN*.7)*1.7)+Math.sin(c*.21-tN*.8+r*.3));cs=Math.max(0,1-cs*1.4)*(1-v/.32)*(1-NT);}
      let ray=0;if(v<.7){const q=(c-r*.45);ray=Math.pow(Math.max(0,Math.sin(q*.16+3*fbm(q*.03+tN*.04,1.7)+tN*.15)),8)*(1-v/.7)*(1-NT);}
@@ -605,7 +603,7 @@ function tap(x,y){
  deposit(x,y,0,0,1.0,36);
  flee.on=true;flee.x=x;flee.y=y;flee.until=tN+.5;
  if(!solid(x,y)){rings.push({x,y,t:tN});if(rings.length>6)rings.shift();}
- if(!solid(x,y))for(let k=0;k<8+(rnd()*5|0);k++)bub(x+(rnd()-.5)*16,y+(rnd()-.5)*10,rnd());
+ if(!solid(x,y)){for(let k=0;k<14+(rnd()*8|0);k++){bub(x+(rnd()-.5)*22,y+(rnd()-.5)*12,rnd());const b=bubbles[bubbles.length-1];if(b){b.vy-=rnd()*40;b.vx*=1.6;}}}
  const all=fishes.concat(...schools.map(s=>s.fish));
  for(const f of all){const dx=f.x-x,dy=f.y-y,d=Math.hypot(dx,dy);if(d<130){f.fx=1;f.p=1;const k=(1-d/130)*260+60;f.vx+=dx/(d+1)*k;f.vy+=dy/(d+1)*k;
   if(f.tx!==undefined&&!f.clown)f.cur={x,y,t0:tN+1.1+rnd()*.8,t1:tN+5+rnd()*2};}}
