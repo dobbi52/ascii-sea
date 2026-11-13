@@ -9,9 +9,20 @@
 html,body{margin:0;height:100%;background:#020814;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
 iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:#020814}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
-#sw{position:fixed;z-index:3;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));display:flex;gap:6px;padding:5px;border-radius:12px;background:rgba(0,0,0,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
-#sw canvas{width:52px;height:34px;border-radius:7px;cursor:pointer;opacity:.55;outline:1px solid rgba(255,255,255,.15);transition:opacity .3s,transform .3s,outline-color .3s;display:block}
-#sw canvas.on{opacity:1;transform:scale(1.08);outline:1.5px solid var(--hi)}
+#sw{position:fixed;z-index:3;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));display:flex;align-items:flex-start;gap:6px;padding:5px;border-radius:12px;background:rgba(0,0,0,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#scenes{display:flex;flex-direction:column;gap:6px}
+.it{display:none;align-items:center;gap:7px;flex-direction:row-reverse;cursor:pointer}
+.it.on{display:flex;order:-1}
+#sw.open .it{display:flex;animation:drop .28s ease both}
+#sw.open .it:nth-child(2){animation-delay:.04s}#sw.open .it:nth-child(3){animation-delay:.08s}#sw.open .it:nth-child(4){animation-delay:.12s}#sw.open .it:nth-child(5){animation-delay:.16s}
+@keyframes drop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.it span{display:none;font:600 11px/1 -apple-system,system-ui,"Apple SD Gothic Neo",sans-serif;color:rgba(255,255,255,.75);white-space:nowrap}
+#sw.open .it span{display:block}
+.it canvas{width:52px;height:34px;border-radius:7px;display:block;opacity:.6;outline:1px solid rgba(255,255,255,.15);transition:opacity .3s,outline-color .3s}
+.it.on canvas{opacity:1;outline:1.5px solid var(--hi)}
+#sw.open .it.on span{color:#fff}
+.it.on::after{content:"";display:none}
+#more{position:absolute;left:50%;bottom:-1px;transform:translateX(-50%);font:700 8px/1 "SF Mono",ui-monospace,monospace;color:rgba(255,255,255,.55);pointer-events:none}
 #snd{width:34px;height:34px;border-radius:7px;cursor:pointer;display:block;outline:1px solid rgba(255,255,255,.15);opacity:.6;transition:opacity .3s}
 #snd.on{opacity:1;outline-color:rgba(255,255,255,.55)}
 </style>
@@ -19,7 +30,7 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;back
 <body>
 <iframe id="f" title="글자 풍경"></iframe>
 <canvas id="fx"></canvas>
-<div id="sw"><canvas data-s="sea" style="--hi:#6fe0ff" aria-label="바닷속"></canvas><canvas data-s="forest" style="--hi:#9fe070" aria-label="숲속 연못"></canvas><canvas data-s="ant" style="--hi:#f0a060" aria-label="개미굴"></canvas><canvas id="snd" aria-label="소리 켜기/끄기"></canvas></div>
+<div id="sw"><div id="scenes"><div class="it" data-s="sea" style="--hi:#6fe0ff"><canvas data-s="sea" aria-label="바닷속"></canvas><span>바닷속</span></div><div class="it" data-s="forest" style="--hi:#9fe070"><canvas data-s="forest" aria-label="숲속 연못"></canvas><span>숲속 연못</span></div><div class="it" data-s="ant" style="--hi:#f0a060"><canvas data-s="ant" aria-label="개미굴"></canvas><span>개미굴</span></div></div><canvas id="snd" aria-label="소리 켜기/끄기"></canvas></div>
 <script src="sfx.js"></script>
 <script>
 (()=>{
@@ -29,7 +40,9 @@ const GL='@#%&*+=~-:;.oO0/\\|<>';
 let cur=null,busy=false;
 function size(){const d=Math.min(devicePixelRatio||1,2);fx.width=innerWidth*d;fx.height=innerHeight*d;c.setTransform(d,0,0,d,0,0);}
 size();addEventListener('resize',size);
-function mark(s){btns.forEach(b=>b.classList.toggle('on',b.dataset.s===s));}
+const items=[...document.querySelectorAll('.it')],sw=document.getElementById('sw');let closeT=null;
+function mark(s){items.forEach(b=>b.classList.toggle('on',b.dataset.s===s));}
+function setOpen(v){sw.classList.toggle('open',v);clearTimeout(closeT);if(v)closeT=setTimeout(()=>setOpen(false),5000);}
 function pick(){const h=(location.hash||'').slice(1);return SC[h]?h:'sea';}
 // glyph dissolve: 0..1 cover, then 1..0 reveal
 function noise(t,hues){
@@ -55,7 +68,9 @@ async function go(s,instant){
  if(pick()!==s)go(pick());
 }
 try{if(localStorage.getItem('ascii-snd')==='1'){/* needs a tap: show as off until pressed */}}catch(e){}
-btns.forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.s;if(location.hash!=='#'+s)history.replaceState(null,'','#'+s);go(s);}));
+items.forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.s,open=sw.classList.contains('open');
+ if(!open){setOpen(true);return;}
+ setOpen(false);if(s===cur)return;if(location.hash!=='#'+s)history.replaceState(null,'','#'+s);go(s);}));
 // sound toggle
 const snd=document.getElementById('snd');snd.width=68;snd.height=68;
 snd.addEventListener('click',()=>{const v=SFX.setOn(!SFX.isOn());snd.classList.toggle('on',v);try{localStorage.setItem('ascii-snd',v?'1':'0');}catch(e){}});
