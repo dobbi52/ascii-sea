@@ -45,7 +45,7 @@ let CAT0,MUGC,PLC,MUGY,PLY,DK,BK,CN,MB,YN;const smoke=[],notes=[];
 function build(){
  n=cols*rows;FOG=new Float32Array(n);TR=new Float32Array(n);WT=new Float32Array(n).fill(-99);OVk=new Array(n);OVc=new Array(n);OVs=new Int32Array(n);
  LAND=W>H;
- FX0=2;FX1=cols-3;FY0=2;SILL=Math.round(rows*(LAND?.78:.8));
+ FX0=2;FX1=cols-3;FY0=2;SILL=Math.round(rows*(LAND?.78:.8));if(LAND&&rows>=36)SILL=Math.min(SILL,rows-13); // 큰 화면: 책상 공간 확보
  FY1=SILL-1;MX=Math.round((FX0+FX1)/2);MY=Math.round(lerp(FY0,FY1,.42));
  for(let i=0;i<n;i++){const c=i%cols,r=(i/cols)|0;FOG[i]=fogTarget(c,r)*.9;}
  houses=[];let x=0;while(x<1.05){const w=.1+hash(x*99,1)*.14,ap=.46+hash(x*99,2)*.1;houses.push({x0:x,x1:x+w,ap,ch:hash(x*99,3)<.5,hue:[10,25,200,0,35][(hash(x*99,4)*5)|0]});x+=w+.01;}
@@ -55,13 +55,13 @@ function build(){
  CAT0=FX0+Math.round(pw*.07)+3;
  cat={st:'sit',t:3,tail:0,look:1,paw:0,c:CAT0,meow:0,lvl:'sill',by:SILL-1,dir:1,tx:0,jp:null};steam=[];zz=[];hearts=[];
  // 책상과 탁상시계 자리
- const D=rows-2;DK={d:D,big:!LAND,x:Math.round(cols*(LAND?.84:.82)),ring:0};
+ const D=rows-2;DK={d:D,big:rows-SILL>=12,x:Math.round(cols*(LAND?.84:.82)),ring:0};
  BK={x:Math.round(cols*(LAND?.06:.03)),turn:-1,next:6};
  CN={x:Math.round(cols*(LAND?.22:.3)),on:true};
  MB={x:Math.round(cols*(LAND?.42:.44)),open:false,i:0,nt:0,close:0};
  YN={x:cols*(LAND?.64:.38),vx:0,rot:0,trail:[]};
  MUGC=Math.round(cols*(LAND?.32:.39));MUGY=D-1;
- if(LAND){PLC=Math.round(cols*.57);PLY=D-1;}else{PLC=DK.x+4;PLY=D-9;}
+ if(!DK.big||D-12<=SILL+1){PLC=Math.round(cols*.6);PLY=D-1;}else{PLC=DK.x+4;PLY=D-9;}
 }
 function fogTarget(c,r){const u=(c-FX0)/(FX1-FX0),v=(r-FY0)/(FY1-FY0),e=Math.min(u,1-u,v*1.2,(1-v)*.7);return cl(.95-e*1.4,.6,.95)*(1+shower*.08)*(1-(1-rainK)*.45);}
 function newBead(x,y,s){return{x:x!==undefined?x:FX0+rnd()*(FX1-FX0),y:y!==undefined?y:FY0+rnd()*(FY1-FY0),s:s!==undefined?s:rnd()*.5,vy:0,ph:rnd()*9};}
@@ -261,7 +261,7 @@ function resize(){
  W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);
  cv.width=W*dpr|0;cv.height=H*dpr|0;ctx.setTransform(1,0,0,1,0,0);ctx.font='bold 20px '+FONT;
  const k=ctx.measureText('M').width/20||.6;
- cw=Math.max(5.6,Math.min(9,W>H?W/120:W/62));fs=cw/k;chH=fs*1.1;cols=Math.ceil(W/cw);rows=Math.ceil(H/chH);asp=chH/cw;
+ cw=Math.max(5.6,Math.min(W>1100?11:9,W>H?W/150>9?W/150:W/120:W/62));fs=cw/k;chH=fs*1.1;cols=Math.ceil(W/cw);rows=Math.ceil(H/chH);asp=chH/cw;
  fontStr='bold '+fs.toFixed(2)+'px '+FONT;gv.width=Math.ceil(W/3);gv.height=Math.ceil(H/3);
  fcv.width=cols;fcv.height=rows;fimg=fctx.createImageData(cols,rows);FD=fimg.data;
  build();
