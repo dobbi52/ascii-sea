@@ -38,7 +38,7 @@ let tN=0,last=0,fid=0,acc=0,wind=0,fuel=1,glowK=1,pumpT=0;
 let HT,H2,TM,OVk,OVc,OVs,CX,BASE,FH,BW,HOR,trees=[],stones=[],embers=[],smoke=[],flies=[],logs=[],falling=[],texts=[],owl=null,mm=null;
 function build(){
  n=cols*rows;HT=new Float32Array(n);H2=new Float32Array(n);TM=new Uint8Array(n);OVk=new Array(n);OVc=new Array(n);OVs=new Int32Array(n);
- const L=W>H;CX=Math.round(cols/2);BASE=Math.round(rows*(L?.8:.76));FH=Math.round(rows*(L?.64:.5));BW=Math.round(L?Math.min(cols*.2,FH*asp*.62):cols*.44);HOR=Math.round(rows*(L?.5:.52));
+ const L=W>H;CX=Math.round(cols/2);BASE=Math.round(rows*(L?.86:.8));FH=Math.round(rows*(L?.8:.66));BW=Math.round(L?Math.min(cols*.36,FH*asp*.85):cols*.66);HOR=Math.round(rows*(L?.5:.52));
  // 나무 실루엣: 뒤쪽 작은 나무 + 양옆 큰 나무
  trees=[];
  for(let x=-2;x<cols+4;x+=3+hash(x,1)*5){const h=5+hash(x,2)*(rows*.16);trees.push({x,b:HOR+1,h,w:h*.42*asp*.55,far:1});}
@@ -72,7 +72,7 @@ function step(dt){
    let src=x+((rnd()*3)|0)-1;const sh=o*.9;if(rnd()<Math.abs(sh)%1)src-=Math.sign(sh);src-=Math.trunc(sh);
    src=cl(src,0,cols-1);let h=HT[(y+1)*cols+src]*.7+HT[j]*.3;
    const nz=vn(x*.16+t*.4,(y+t*30)*.07),dx=(x-CX-o*rowK*FH*.3)/(BW*.5);
-   h-=rnd()*base*2.1*(.35+nz*nz*2.2)+Math.max(0,Math.abs(dx)-.35+rowK*.25)*base*3.2;
+   h-=rnd()*base*1.65*(1+rowK*rowK*.5)*(.3+nz*nz*2.4)+Math.max(0,Math.abs(dx)-.35+rowK*.25)*base*3.2;
    H2[y*cols+x]=h>0?h:0;}}
  for(let y=y0;y<BASE-1;y++)for(let x=0;x<cols;x++)HT[y*cols+x]=H2[y*cols+x];
 }
@@ -111,7 +111,7 @@ function update(dt){
  if(M.state==='new'){M.k+=dt;if(M.k>1){M.state='on';M.t=0;M.burn=0;}}
  for(let k=texts.length-1;k>=0;k--){const z=texts[k];z.a+=dt;z.y-=dt*1.2;if(z.a>1.8)texts.splice(k,1);}
 }
-function mmTip(){const L=W>H;return{x:CX+BW*(L?.33:.45),y:BASE-FH*.28,sx:CX+BW*(L?1.5:1.08),sy:BASE+3};}
+function mmTip(){const L=W>H;return{x:CX+BW*(L?.36:.4),y:BASE-FH*.22,sx:CX+BW*(L?1.1:.78),sy:BASE+3};}
 
 // ---------- 그리기 ----------
 function resize(){
