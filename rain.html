@@ -55,11 +55,11 @@ function build(){
  CAT0=FX0+Math.round(pw*.07)+1;MUGC=FX0+Math.round(pw*.7);PLC=FX0+Math.round(pw*.88);
  cat={st:'sit',t:3,tail:0,look:1,paw:0,c:CAT0,meow:0};steam=[];zz=[];hearts=[];
  // 책상과 탁상시계 자리
- const D=rows-(LAND?2:4);DK={d:D,big:!LAND,x:Math.round(cols*.5),ring:0};
- BK={x:Math.round(cols*(LAND?.1:.04)),turn:-1,next:6};
- CN={x:Math.round(cols*(LAND?.22:.27)),on:true};
- MB={x:Math.round(cols*(LAND?.68:.72)),open:false,i:0,nt:0,close:0};
- YN={x:cols*(LAND?.84:.9),home:cols*(LAND?.84:.9),vx:0,rot:0,trail:[]};
+ const D=rows-2;DK={d:D,big:!LAND,x:Math.round(cols*(LAND?.84:.82)),ring:0};
+ BK={x:Math.round(cols*(LAND?.06:.03)),turn:-1,next:6};
+ CN={x:Math.round(cols*(LAND?.22:.3)),on:true};
+ MB={x:Math.round(cols*(LAND?.42:.44)),open:false,i:0,nt:0,close:0};
+ YN={x:cols*(LAND?.64:.38),vx:0,rot:0,trail:[]};
 }
 function fogTarget(c,r){const u=(c-FX0)/(FX1-FX0),v=(r-FY0)/(FY1-FY0),e=Math.min(u,1-u,v*1.2,(1-v)*.7);return cl(.95-e*1.4,.6,.95)*(1+shower*.08)*(1-(1-rainK)*.45);}
 function newBead(x,y,s){return{x:x!==undefined?x:FX0+rnd()*(FX1-FX0),y:y!==undefined?y:FY0+rnd()*(FY1-FY0),s:s!==undefined?s:rnd()*.5,vy:0,ph:rnd()*9};}
@@ -164,10 +164,10 @@ function update(dt){
  BK.next-=dt;if(BK.next<0&&BK.turn<0){BK.turn=0;BK.next=7+rnd()*9;SND('flutter',{min:500});}
  if(BK.turn>=0){BK.turn+=dt*2.2;if(BK.turn>1)BK.turn=-1;}
  // 촛불 연기
- if(!CN.on&&rnd()<dt*3&&CN.smk>0)smoke.push({x:CN.x,y:DK.d-(DK.big?4:3),a:0,ph:rnd()*9});if(CN.smk>0)CN.smk-=dt;
+ if(!CN.on&&rnd()<dt*3&&CN.smk>0)smoke.push({x:CN.x,y:flameY()-1,a:0,ph:rnd()*9});if(CN.smk>0)CN.smk-=dt;
  for(let k=smoke.length-1;k>=0;k--){const z=smoke[k];z.a+=dt;z.y-=dt*1.4;z.x+=Math.sin(z.a*3+z.ph)*dt;if(z.a>2.4)smoke.splice(k,1);}
  // 오르골 (반짝반짝 작은 별)
- if(MB.open){MB.nt-=dt;if(MB.nt<0){if(MB.i<MEL.length){const f=MEL[MB.i];if(f)SND('chime',{f,min:0});if(f)notes.push({x:MB.x+3,y:DK.d-3,a:0,h:[45,200,300,130][MB.i%4],dx:(rnd()-.5)*.8});MB.i++;MB.nt=.36;}else{MB.close+=dt;if(MB.close>1.2){MB.open=false;}}}}
+ if(MB.open){MB.nt-=dt;if(MB.nt<0){if(MB.i<MEL.length){const f=MEL[MB.i];if(f)SND('chime',{f,min:0});if(f)notes.push({x:MB.x+5,y:DK.d-(DK.big?8:4),a:0,h:[45,200,300,130][MB.i%4],dx:(rnd()-.5)*.8});MB.i++;MB.nt=.36;}else{MB.close+=dt;if(MB.close>1.2){MB.open=false;}}}}
  for(let k=notes.length-1;k>=0;k--){const z=notes[k];z.a+=dt;z.y-=dt*1.6;z.x+=z.dx*dt+Math.sin(z.a*4)*dt*.6;if(z.a>2.2)notes.splice(k,1);}
  // 털실 뭉치 굴러가기
  if(Math.abs(YN.vx)>.05){const ox=YN.x;YN.x+=YN.vx*dt;YN.vx*=Math.pow(.55,dt);YN.rot+=YN.vx*dt;
@@ -186,6 +186,7 @@ function lightning(big){if(rainK<.5)return;flash=1;setTimeout(()=>SND('thunder')
 
 // ---------- 방 안: 책상 + 탁상시계 ----------
 const FONT3=[['###','# #','# #','# #','###'],['  #','  #','  #','  #','  #'],['###','  #','###','#  ','###'],['###','  #','###','  #','###'],['# #','# #','###','  #','  #'],['###','#  ','###','  #','###'],['###','#  ','###','# #','###'],['###','  #','  #','  #','  #'],['###','# #','###','# #','###'],['###','# #','###','  #','###']];
+function flameY(){return DK.d-(DK.big?8:4);}
 const MEL=[523,523,784,784,880,880,784,0,698,698,659,659,587,587,523];
 function indoor(){
  const L=v=>v*RL,{d:D,big}=DK;
@@ -207,24 +208,34 @@ function indoor(){
   str(x0,top,'.---------.',box);putN(x0,top+1,'|',box);for(let q=0;q<9;q++)putN(x0+1+q,top+1,' ','');str(x0+2,top+1,t,amb);putN(x0+10,top+1,'|',box);str(x0,top+2,"'---------'",box);
   if(DK.ring>0)str(x0+12,top,'RING!))',hsl(50,100,70));}
  // 책 더미 + 펼친 책
- {const x=BK.x,b=DK.big,cs=[[200,45],[350,45],[130,40]],rowsB=b?3:2;
-  for(let k=0;k<rowsB;k++){const w=(b?9:7)-(k%2),xx=x+(k%2);str(xx,D-1-k,'['+'='.repeat(w-2)+']',hsl(cs[k][0],cs[k][1],L(46)));}
-  const ty=D-1-rowsB,pg=hsl(45,25,L(80)),w=b?4:3;
+ {const x=BK.x,b=DK.big,cs=[[200,45],[350,45],[130,40],[45,55],[280,35]],nB=b?5:3,BW=b?13:9;
+  for(let k=0;k<nB;k++){const w=BW-[0,2,1,3,1][k],xx=x+[0,1,0,2,1][k],col=hsl(cs[k][0],cs[k][1],L(46));str(xx,D-1-k,'['+'='.repeat(w-2)+']',(ch,q)=>q===2||q===w-3?hsl(45,60,L(62)):col);}
+  const ty=D-1-nB,pg=hsl(45,25,L(80)),w=b?5:3;
   putN(x,ty,'/',pg);for(let q=1;q<=w;q++){putN(x+q,ty,'~',hsl(45,15,L(62)));putN(x+w+1+q,ty,'~',hsl(45,15,L(62)));}putN(x+w+1,ty,'|',pg);putN(x+2*w+2,ty,'\\',pg);
-  if(BK.turn>=0){const t=BK.turn,px=Math.round(x+w+1+(w)*(1-2*t)*.9);putN(px,ty-1,t<.33?'\\':t<.66?'|':'/',pg);}}
- // 촛불
- {const x=CN.x,b=DK.big;str(x-1,D-1,'\\_/',hsl(40,30,L(55)));putN(x,D-2,'|',hsl(40,20,L(88)));if(b)putN(x,D-3,'|',hsl(40,20,L(88)));
-  const fy=D-(b?4:3);if(CN.on){const f=Math.sin(tN*13)+Math.sin(tN*7.3)>0;putN(x,fy,f?'*':'^',hsl(f?45:35,100,f?74:64));}
+  if(BK.turn>=0){const t=BK.turn,px=Math.round(x+w+1+(w)*(1-2*t)*.9);putN(px,ty-1,t<.33?'\\':t<.66?'|':'/',pg);if(b)putN(px+(t<.5?1:-1),ty-2,t<.5?'\\':'/',pg);}}
+ // 촛불 (촛대)
+ {const x=CN.x,b=DK.big,wax=hsl(40,25,L(86)),brass=hsl(42,60,L(52));
+  if(b){str(x-3,D-1,'\\_____/',brass);str(x-1,D-2,'[_]',brass);for(let r=D-6;r<=D-3;r++){putN(x-1,r,'|',wax);putN(x,r,r===D-5?':':' ',hsl(40,20,L(70)));putN(x+1,r,'|',wax);}
+   putN(x+1,D-5,'.',wax);putN(x,D-7,'|',hsl(0,0,L(30)));}
+  else{str(x-2,D-1,'\\___/',brass);putN(x-1,D-2,'|',wax);putN(x+1,D-2,'|',wax);putN(x-1,D-3,'|',wax);putN(x+1,D-3,'|',wax);}
+  const fy=flameY();
+  if(CN.on){const f=Math.sin(tN*13)+Math.sin(tN*7.3)>0,g=Math.sin(tN*9.1)>0;
+   if(b){str(x-1,fy,f?'(*)':'/*\\',(ch)=>ch==='*'?hsl(50,100,86):hsl(30,100,62));putN(x+(g?0:(f?1:-1))*0,fy-1,f?'^':"'",hsl(40,100,70));}
+   else putN(x,fy,f?'*':'^',hsl(f?45:35,100,f?74:64));}
   for(const z of smoke)putN(z.x,z.y,z.a<1?'~':'.',hsl(0,0,L(60-z.a*15)));}
  // 오르골
- {const x=MB.x,b=DK.big,col=hsl(330,40,L(55)),gd=hsl(45,70,L(58));
-  str(x,D-1,'[_##_]',(ch,q)=>ch==='#'?gd:col);
-  if(MB.open){putN(x,D-2,'|',col);putN(x,D-3,'|',col);const fr=(tN*4|0)%4;putN(x+3,D-3,'o',hsl(30,40,L(80)));str(x+2,D-2,['/|\\','-|-','\\|/','-|-'][fr],hsl(330,60,L(75)));}
-  else str(x,D-2,' ____ ',col);
+ {const x=MB.x,b=DK.big,col=hsl(330,40,L(52)),gd=hsl(45,75,L(60)),wd=b?10:8;
+  if(b){str(x,D-1,'['+'_'.repeat(wd-2)+']',col);str(x,D-2,'| #<>#<> |'.slice(0,wd),(ch)=>ch==='|'?col:gd);}
+  else str(x,D-1,'[_#<>#_]',(ch)=>ch==='#'||ch==='<'||ch==='>'?gd:col);
+  const tp=b?D-3:D-2;
+  if(MB.open){const fr=(tN*4|0)%4,cx=x+(wd>>1);str(x,tp,'|'+'='.repeat(wd-2)+'|',col);
+   for(let r=tp-1;r>=tp-(b?4:1);r--)putN(x,r,'|',col);putN(x,tp-(b?5:2),'_',col);
+   const hd=b?tp-3:tp-2;putN(cx,hd,'o',hsl(30,40,L(82)));str(cx-1,hd+1,['\\|/','-|-','/|\\','-|-'][fr],hsl(330,60,L(76)));if(b)str(cx-1,hd+2,fr%2?'/ \\':' | ',hsl(330,60,L(70)));}
+  else{str(x,tp,' '+'_'.repeat(wd-2)+' ',col);}
   for(const z of notes)putN(z.x,z.y,z.a<1.1?'♪':'♫',hsl(z.h,80,72-z.a*12));}
- // 털실 뭉치 (책상 위, 시계 앞)
- {for(const t of YN.trail)if(t.a<5)putN(t.x,D-1,'~',hsl(345,50,L(48-t.a*5)));
-  putN(YN.x,D-1,['@','O','@','0'][((YN.rot*1.5)%4+4)%4|0],hsl(345,70,L(62)));putN(YN.x+1,D-1,Math.abs(YN.vx)>.1?' ':'~',hsl(345,60,L(52)));}
+ // 털실 뭉치 (책상 앞쪽)
+ {for(const t of YN.trail)if(t.a<5)putN(t.x,D,'~',hsl(345,50,L(48-t.a*5)));
+  putN(YN.x,D,['@','O','@','0'][((YN.rot*1.5)%4+4)%4|0],hsl(345,70,L(64)));if(Math.abs(YN.vx)<.1)putN(YN.x+1,D,'~',hsl(345,60,L(52)));}
  // 창틀 꼬마전구
  {const r=FY0-2,on=power(4.5);for(let c=FX0-1;c<=FX1+1;c++){const k=c-FX0;if(k%4===1){const hue=[0,45,130,200,300][(k/4|0)%5],tw=Math.sin(tN*2+k*1.7)>-.3;putN(c,r,on&&tw?'o':'.',on?hsl(hue,90,tw?66:40):hsl(0,0,30));}else putN(c,r,(k%4===3)?'~':'-',hsl(30,10,L(26)));}}
 }
@@ -302,7 +313,7 @@ function frame(now){
  if(flash>0){ctx.fillStyle=`rgba(220,230,255,${(flash*.55).toFixed(3)})`;ctx.fillRect(FX0*cw,FY0*chH,(FX1-FX0+1)*cw,(FY1-FY0+1)*chH);ctx.fillStyle=`rgba(220,230,255,${(flash*.12).toFixed(3)})`;ctx.fillRect(0,0,W,H);}
  // 따뜻한 방 불빛
  ctx.globalCompositeOperation='lighter';
- if(CN.on){const cx=CN.x*cw,cy=(DK.d-(DK.big?4:3))*chH,fl=.11+.03*Math.sin(tN*11),g=ctx.createRadialGradient(cx,cy,0,cx,cy,cw*16);g.addColorStop(0,`rgba(255,180,90,${fl.toFixed(3)})`);g.addColorStop(1,'rgba(255,180,90,0)');ctx.fillStyle=g;ctx.fillRect(cx-cw*16,cy-cw*16,cw*32,cw*32);}
+ if(CN.on){const cx=CN.x*cw,cy=flameY()*chH,fl=.11+.03*Math.sin(tN*11),g=ctx.createRadialGradient(cx,cy,0,cx,cy,cw*16);g.addColorStop(0,`rgba(255,180,90,${fl.toFixed(3)})`);g.addColorStop(1,'rgba(255,180,90,0)');ctx.fillStyle=g;ctx.fillRect(cx-cw*16,cy-cw*16,cw*32,cw*32);}
  if(power(3.5)){const cx=DK.x*cw,cy=(DK.d-(DK.big?4:2))*chH,g=ctx.createRadialGradient(cx,cy,0,cx,cy,cw*(DK.big?22:12));g.addColorStop(0,'rgba(255,150,60,.10)');g.addColorStop(1,'rgba(255,150,60,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
  ctx.globalCompositeOperation='source-over';
  gx.clearRect(0,0,gv.width,gv.height);gx.drawImage(cv,0,0,gv.width,gv.height);
@@ -317,10 +328,10 @@ function tap(x,y){const c=x/cw,r=y/chH;
  if(catHit(c,r)){if(cat.st==='sleep'||cat.st==='startle'){cat.st='sit';cat.t=3;}cat.look*=-1;cat.meow=1.2;SND('meow');return true;}
  if(near(c,r,MUGC+1,SILL-1,2.5,2.5)){mug.heat=1;for(let k=0;k<8;k++)steam.push({x:MUGC+1,y:SILL-2,a:rnd()*.4,ph:rnd()*9});SND('bubble',{p:.7});setTimeout(()=>SND('bubble',{p:.9}),120);return true;}
  if(near(c,r,DK.x,DK.d-(DK.big?4:2),DK.big?11:6,DK.big?4.5:2)){alarm();return true;}
- if(near(c,r,CN.x,DK.d-2,2,2.5)){CN.on=!CN.on;if(!CN.on){CN.smk=1.6;SND('whoosh',{v:.25});}else SND('tick');return true;}
- if(near(c,r,MB.x+2.5,DK.d-2,3.5,2.5)){if(!MB.open){MB.open=true;MB.i=0;MB.nt=.3;MB.close=0;SND('tick');}else{MB.open=false;SND('tick');}return true;}
- if(near(c,r,YN.x,DK.d-1,2.5,1.5)){const dir=YN.x>cols*.5?-1:1;YN.vx=dir*(14+rnd()*10);SND('scratch');return true;}
- if(near(c,r,BK.x+5,DK.d-3,6,2.5)){if(BK.turn<0){BK.turn=0;SND('flutter',{min:300});}return true;}
+ if(near(c,r,CN.x,(DK.d+flameY())/2,2.5,DK.big?5:2.5)){CN.on=!CN.on;if(!CN.on){CN.smk=1.6;SND('whoosh',{v:.25});}else SND('tick');return true;}
+ if(near(c,r,MB.x+5,DK.d-(DK.big?3:2),5,DK.big?3.5:2)){if(!MB.open){MB.open=true;MB.i=0;MB.nt=.3;MB.close=0;SND('tick');}else{MB.open=false;SND('tick');}return true;}
+ if(near(c,r,YN.x,DK.d,2.5,1.5)){const dir=YN.x>cols*.5?-1:1;YN.vx=dir*(14+rnd()*10);SND('scratch');return true;}
+ if(near(c,r,BK.x+6,DK.d-(DK.big?4:2),7,DK.big?4:2.5)){if(BK.turn<0){BK.turn=0;SND('flutter',{min:300});}return true;}
  if(inPane(Math.round(c),Math.round(r))){drops.push(newBead(c,r,.8));SND('drip');}
  return false;
 }
