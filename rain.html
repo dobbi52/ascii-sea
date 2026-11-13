@@ -57,7 +57,7 @@ function inPane(c,r){return c>=FX0&&c<=FX1&&r>=FY0&&r<=FY1&&c!==MX&&r!==MY;}
 function outside(c,r,rn){ // [ch,col,bright]
  const u=(c-FX0)/(FX1-FX0),v=(r-FY0)/(FY1-FY0),lit=1-dusk*.3;
  // rain streaks outside
- const rs=hash(c,((r+tN*(18+shower*14))|0)>>1);if(rs<.035+shower*.06&&v<.9)return['|',hsl(210,15,52),0];
+ const rs=hash(c,((r-tN*(18+shower*14))|0)>>1);if(rs<.035+shower*.06&&v<.9)return['|',hsl(210,15,52),0];
  if(v<.38){const cl2=vn(c*.08-tN*.06,r*.25);return[cl2>.55?(cl2>.7?':':'.'):' ',hsl(215,12,30+cl2*16-shower*6),0];}
  if(v<.47){const hl=.4+.05*Math.sin(u*9)+.03*Math.sin(u*23);if(v>hl)return[rn<.4?'^':rn<.6?'n':'.',hsl(200,14,30),0,hsl(205,16,15)];return[' ','',0];}
  for(const h of houses){if(u<h.x0||u>h.x1)continue;const hw=h.x1-h.x0,mid=(h.x0+h.x1)/2,du=Math.abs(u-mid)/(hw/2);
