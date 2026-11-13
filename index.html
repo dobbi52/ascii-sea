@@ -37,12 +37,12 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;back
 <body>
 <iframe id="f" title="글자 풍경"></iframe>
 <canvas id="fx"></canvas>
-<div id="sw"><div id="scenes"><div class="it" data-s="sea" style="--hi:#6fe0ff"><canvas data-s="sea" aria-label="바닷속"></canvas><span>바닷속</span></div><div class="it" data-s="forest" style="--hi:#9fe070"><canvas data-s="forest" aria-label="숲속 연못"></canvas><span>숲속 연못</span></div><div class="it" data-s="ant" style="--hi:#f0a060"><canvas data-s="ant" aria-label="개미굴"></canvas><span>개미굴</span></div><div class="it" data-s="city" style="--hi:#ffcf5f"><canvas data-s="city" aria-label="도시 야경"></canvas><span>도시 야경</span></div><div class="it" data-s="rain" style="--hi:#9cc8ff"><canvas data-s="rain" aria-label="비 오는 창가"></canvas><span>비 오는 창가</span></div></div><canvas id="snd" aria-label="소리 켜기/끄기"></canvas><button id="fsb" aria-label="전체 화면">[ ]</button></div>
+<div id="sw"><div id="scenes"><div class="it" data-s="sea" style="--hi:#6fe0ff"><canvas data-s="sea" aria-label="바닷속"></canvas><span>바닷속</span></div><div class="it" data-s="forest" style="--hi:#9fe070"><canvas data-s="forest" aria-label="숲속 연못"></canvas><span>숲속 연못</span></div><div class="it" data-s="ant" style="--hi:#f0a060"><canvas data-s="ant" aria-label="개미굴"></canvas><span>개미굴</span></div><div class="it" data-s="city" style="--hi:#ffcf5f"><canvas data-s="city" aria-label="도시 야경"></canvas><span>도시 야경</span></div><div class="it" data-s="rain" style="--hi:#9cc8ff"><canvas data-s="rain" aria-label="비 오는 창가"></canvas><span>비 오는 창가</span></div><div class="it" data-s="fire" style="--hi:#ff9a4a"><canvas data-s="fire" aria-label="모닥불"></canvas><span>모닥불</span></div></div><canvas id="snd" aria-label="소리 켜기/끄기"></canvas><button id="fsb" aria-label="전체 화면">[ ]</button></div>
 <div id="tip"></div>
 <script>document.write('<script src="sfx.js?v='+Date.now()+'"><\/script>')</script>
 <script>
 (()=>{
-const SC={sea:{src:'sea.html',hues:[185,200,45,320,24]},forest:{src:'forest.html',hues:[95,120,60,352,196]},ant:{src:'ant.html',hues:[24,12,40,95,30]},city:{src:'city.html',hues:[42,185,320,0,55]},rain:{src:'rain.html',hues:[210,40,28,200,0]}};
+const SC={sea:{src:'sea.html',hues:[185,200,45,320,24]},forest:{src:'forest.html',hues:[95,120,60,352,196]},ant:{src:'ant.html',hues:[24,12,40,95,30]},city:{src:'city.html',hues:[42,185,320,0,55]},rain:{src:'rain.html',hues:[210,40,28,200,0]},fire:{src:'fire.html',hues:[24,40,8,50,140]}};
 const f=document.getElementById('f'),fx=document.getElementById('fx'),c=fx.getContext('2d'),btns=[...document.querySelectorAll('#sw canvas[data-s]')];
 const GL='@#%&*+=~-:;.oO0/\\|<>';
 let cur=null,busy=false;
@@ -109,6 +109,7 @@ function mini(t){drawSnd(t);btns.forEach(b=>{const g=b.getContext('2d'),s=b.data
  if(s==='sea'){gr.addColorStop(0,'#0e5672');gr.addColorStop(1,'#04182a');}
  else if(s==='forest'){gr.addColorStop(0,'#2b4a22');gr.addColorStop(1,'#10200c');}
  else if(s==='city'){gr.addColorStop(0,'#0a0a24');gr.addColorStop(.62,'#2a1640');gr.addColorStop(.63,'#04050c');gr.addColorStop(1,'#04050c');}
+ else if(s==='fire'){gr.addColorStop(0,'#0a0a22');gr.addColorStop(.6,'#1a1230');gr.addColorStop(.61,'#140a04');gr.addColorStop(1,'#0a0502');}
  else if(s==='rain'){gr.addColorStop(0,'#5a6678');gr.addColorStop(.7,'#2a3140');gr.addColorStop(.71,'#2a1a10');gr.addColorStop(1,'#1a100a');}
  else{gr.addColorStop(0,'#8fcbe8');gr.addColorStop(.3,'#8fcbe8');gr.addColorStop(.31,'#3a2414');gr.addColorStop(1,'#1a0e07');}
  g.fillStyle=gr;g.fillRect(0,0,52,34);g.font=MF;g.textBaseline='top';
@@ -128,6 +129,12 @@ function mini(t){drawSnd(t);btns.forEach(b=>{const g=b.getContext('2d'),s=b.data
   for(let c=0;c<10;c++){const top=hs2[c]*1.6;for(let r=Math.ceil(top);r<2;r++)P(((c*3+r)%2)&&Math.sin(t+c*r)>-.3?'#':'.',c,r,(c%3)?hs(42,80,58):hs(185,55,54));if(top<1.9)P('_',c,top-.4,hs(235,20,40));}
   P('*',3,-.1,((t*2)|0)%2?hs(0,90,60):hs(0,40,20));
   for(let c=0;c<10;c++)P(((c+(t*2|0))%3)?'~':'-',c,2,(c%3)?hs(42,60,35):hs(225,30,30));
+ }else if(s==='fire'){
+  for(let c=0;c<10;c++)if(Math.sin(c*5.1)>.5)P('.',c,-.1,hs(220,30,70));
+  for(let c=0;c<10;c++){if(c===0||c===9){P('^',c,.6,hs(140,30,22));continue;}const d=Math.abs(c-4.5);const f=Math.sin(t*9+c*2.3)+Math.sin(t*5.7-c);
+   if(d<3.2)P(d<1.2?(f>0?'@':'#'):d<2.2?(f>0?'*':'^'):"'",c,1.15,d<1.2?hs(45,100,70):d<2.2?hs(28,100,58):hs(8,90,45));
+   if(d<1.6&&f>-.6)P(f>.6?'^':"'",c,.35-(f>1?.2:0),hs(15+f*8,100,55));}
+  for(let c=0;c<10;c++)P(c>2&&c<7?(c%2?'=':'o'):'.',c,2,c>2&&c<7?(c%2?hs(25,40,35):hs(15,100,55)):hs(30,30,25));
  }else if(s==='rain'){
   for(let c=0;c<10;c++)P(c===5?'|':(Math.sin(c*7.3+((t*1.5)|0))>.6?'o':'.'),c,0,c===5?hs(28,40,40):hs(205,25,72));
   for(let c=0;c<10;c++)P(c===5?'|':(c%3===1?'#':'^'),c,1,c===5?hs(28,40,40):c%3===1?hs(42,90,60):hs(10,35,45));
