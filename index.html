@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="글자 풍경">
 <title>글자 풍경</title>
 <style>
 html,body{margin:0;height:100%;background:#020814;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
@@ -25,12 +29,16 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;back
 #more{position:absolute;left:50%;bottom:-1px;transform:translateX(-50%);font:700 8px/1 "SF Mono",ui-monospace,monospace;color:rgba(255,255,255,.55);pointer-events:none}
 #snd{width:34px;height:34px;border-radius:7px;cursor:pointer;display:block;outline:1px solid rgba(255,255,255,.15);opacity:.6;transition:opacity .3s}
 #snd.on{opacity:1;outline-color:rgba(255,255,255,.55)}
+#fsb{width:34px;height:34px;border-radius:7px;border:0;cursor:pointer;display:block;outline:1px solid rgba(255,255,255,.15);opacity:.6;background:#10141c;color:#e8f4ff;font:700 11px/1 "SF Mono",ui-monospace,Menlo,monospace;padding:0;letter-spacing:-1px}
+#fsb.on{opacity:1;outline-color:rgba(255,255,255,.55)}
+#tip{position:fixed;z-index:4;left:50%;top:calc(60px + env(safe-area-inset-top));transform:translateX(-50%);max-width:300px;padding:10px 14px;border-radius:10px;background:rgba(10,12,20,.92);color:#fff;font:500 13px/1.5 -apple-system,system-ui,"Apple SD Gothic Neo",sans-serif;text-align:center;opacity:0;transition:opacity .4s;pointer-events:none}
 </style>
 </head>
 <body>
 <iframe id="f" title="글자 풍경"></iframe>
 <canvas id="fx"></canvas>
-<div id="sw"><div id="scenes"><div class="it" data-s="sea" style="--hi:#6fe0ff"><canvas data-s="sea" aria-label="바닷속"></canvas><span>바닷속</span></div><div class="it" data-s="forest" style="--hi:#9fe070"><canvas data-s="forest" aria-label="숲속 연못"></canvas><span>숲속 연못</span></div><div class="it" data-s="ant" style="--hi:#f0a060"><canvas data-s="ant" aria-label="개미굴"></canvas><span>개미굴</span></div><div class="it" data-s="city" style="--hi:#ffcf5f"><canvas data-s="city" aria-label="도시 야경"></canvas><span>도시 야경</span></div></div><canvas id="snd" aria-label="소리 켜기/끄기"></canvas></div>
+<div id="sw"><div id="scenes"><div class="it" data-s="sea" style="--hi:#6fe0ff"><canvas data-s="sea" aria-label="바닷속"></canvas><span>바닷속</span></div><div class="it" data-s="forest" style="--hi:#9fe070"><canvas data-s="forest" aria-label="숲속 연못"></canvas><span>숲속 연못</span></div><div class="it" data-s="ant" style="--hi:#f0a060"><canvas data-s="ant" aria-label="개미굴"></canvas><span>개미굴</span></div><div class="it" data-s="city" style="--hi:#ffcf5f"><canvas data-s="city" aria-label="도시 야경"></canvas><span>도시 야경</span></div></div><canvas id="snd" aria-label="소리 켜기/끄기"></canvas><button id="fsb" aria-label="전체 화면">[ ]</button></div>
+<div id="tip"></div>
 <script>document.write('<script src="sfx.js?v='+Date.now()+'"><\/script>')</script>
 <script>
 (()=>{
@@ -71,6 +79,19 @@ try{if(localStorage.getItem('ascii-snd')==='1'){/* needs a tap: show as off unti
 items.forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.s,open=sw.classList.contains('open');
  if(!open){setOpen(true);return;}
  setOpen(false);if(s===cur)return;if(location.hash!=='#'+s)history.replaceState(null,'','#'+s);go(s);}));
+// fullscreen
+const fsb=document.getElementById('fsb'),tip=document.getElementById('tip'),de=document.documentElement;
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+const canFS=!!(de.requestFullscreen||de.webkitRequestFullscreen);
+function showTip(t){tip.textContent=t;tip.style.opacity=1;clearTimeout(tip._t);tip._t=setTimeout(()=>tip.style.opacity=0,4500);}
+function syncFS(){const on=!!fsEl();fsb.classList.toggle('on',on);fsb.textContent=on?'] [':'[ ]';}
+fsb.addEventListener('click',async()=>{
+ if(fsEl()){try{await (document.exitFullscreen||document.webkitExitFullscreen).call(document);}catch(e){}return;}
+ if(canFS){try{await (de.requestFullscreen||de.webkitRequestFullscreen).call(de,{navigationUI:'hide'});}catch(e){showTip('이 브라우저는 전체 화면을 막아두었어요.');}}
+ else if(navigator.standalone)showTip('이미 전체 화면으로 보고 있어요.');
+ else showTip('아이폰은 아래 공유 버튼 → "홈 화면에 추가"로 저장한 뒤 열면 전체 화면으로 볼 수 있어요.');
+});
+document.addEventListener('fullscreenchange',syncFS);document.addEventListener('webkitfullscreenchange',syncFS);
 // sound toggle
 const snd=document.getElementById('snd');snd.width=68;snd.height=68;
 snd.addEventListener('click',()=>{const v=SFX.setOn(!SFX.isOn());snd.classList.toggle('on',v);try{localStorage.setItem('ascii-snd',v?'1':'0');}catch(e){}});
