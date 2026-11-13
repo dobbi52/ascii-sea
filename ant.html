@@ -36,13 +36,14 @@ const cc=new Map();
 function hsl(h,s,l){h=((h%360)+360)%360;h=(h/4|0)*4;s=cl(s,0,100);s=(s/5|0)*5;l=cl(l,0,100);l=(l/2|0)*2;
  const k=h*1000000+s*1000+l;let v=cc.get(k);if(!v){v='hsl('+h+','+s+'%,'+l+'%)';cc.set(k,v);}return v;}
 const rnd=Math.random;
+const SND=(n,o)=>{try{if(parent!==window&&parent.SFX)parent.SFX.play(n,o);}catch(e){}},SNDSET=(k,v)=>{try{if(parent!==window&&parent.SFX)parent.SFX.set(k,v);}catch(e){}};
 let tN=0,last=0,fid=0,NT=0;
 try{const m=location.hash.match(/^#t(\d+)$/);if(m)tN=+m[1];}catch(e){}
 
 // ---------- world ----------
 const FOOD=0,NURSE=1,QUEEN=2,TRASH=3,FARM=4,RANCH=5,SLEEP=6,SUMPR=7,BASE_ROOMS=8;
 let rooms=[],fields={},dirty=true,sfood=[],tfood=[],ants=[],foes=[],queen=null,jobs=[],expands=[],worm=null,mole=null,nextMole=30,dirtT=[],parts=[],nextDrop=8;
-let rain=null,big=null,nextEvent=35,evIdx=0,nextFlight=70,guardI=0,aphids=[],mush=[],flood=0,foeT=0,watT=0,wTick=0;
+let grubs=[],bug=null,snail=null,bird=null,nextBird=25,SL=null,rain=null,big=null,nextEvent=35,evIdx=0,nextFlight=70,guardI=0,aphids=[],mush=[],flood=0,foeT=0,watT=0,wTick=0;
 const idx=(c,r)=>r*cols+c;
 const inb=(c,r)=>c>=0&&r>=0&&c<cols&&r<rows;
 function walk(i){const r=(i/cols)|0;return TUN[i]===1||r===S-1;}
@@ -106,6 +107,8 @@ function build(){
  add('forage',12);add('nurse',7);add('clean',2);add('leaf',3);add('ranch',2);add('soldier',5);add('wing',4);add('idle',9);
  roles.forEach(ro=>spawnAnt(ro));
  worm={pts:[],c:cols*.3,r:rows*.55,h:rnd()*6,sp:2.2};
+ grubs=[];for(let k=0;k<3;k++){for(let t=0;t<200;t++){const c=2+(rnd()*(cols-4)|0),r=S+6+(rnd()*(rows-S-12)|0);let ok=true;for(let y=-2;y<=2;y++)for(let x=-3;x<=3;x++){if(!inb(c+x,r+y)||TUN[idx(c+x,r+y)]||OBS[idx(c+x,r+y)])ok=false;}if(ok){grubs.push({c,r,ph:rnd()*9,s:0});break;}}}
+ SL=new Float32Array(cols);bug={x:cols*.2,d:1,st:'walk',t:0,y:S-1,cl:0};snail={x:cols*.75,d:-1,hide:0};bird=null;nextBird=tN+20;
  mole=null;nextMole=tN+28;nextEvent=tN+30;nextFlight=tN+60;
 }
 function randTun(room){const list=[];for(let k=0;k<n;k++)if(TUN[k]&&((k/cols)|0)>S+1&&(room===undefined||RID[k]===room)&&!SUMP[k])list.push(k);return list[(rnd()*list.length)|0];}
@@ -187,7 +190,7 @@ function arrive(a){
   case 'guard':a.st='patrol';a.tgt=null;a.wt=3+rnd()*4;break;
   case 'settle':a.st='wander';a.tgt=null;a.wt=4+rnd()*6;a.rest=1+rnd()*3;break;
   case 'sleepGo':a.st='sleeping';a.rest=6+rnd()*8;break;
-  case 'flyOut':{const i=ants.indexOf(a);if(i>=0)ants.splice(i,1);parts.push({k:'fly',x:a.c,y:a.r-1,a:0,ph:rnd()*9,vx:(rnd()-.5)*4});break;}
+  case 'flyOut':{SND('buzz',{min:400});const i=ants.indexOf(a);if(i>=0)ants.splice(i,1);parts.push({k:'fly',x:a.c,y:a.r-1,a:0,ph:rnd()*9,vx:(rnd()-.5)*4});break;}
   case 'evGet':{const nr=rooms[NURSE];if(nr.eggs>0){nr.eggs--;a.carry={ch:'o',col:hsl(48,40,92)};a.st='evPut';a.tgt='r0';}else if(nr.larva>0){nr.larva--;a.carry={ch:'c',col:hsl(45,45,80)};a.st='evPut';a.tgt='r0';}else{a.st='wander';a.wt=3;}break;}
   case 'evPut':a.carry=null;m0.ev++;a.st='evGet';a.tgt='r'+NURSE;break;
   case 'retGet':if(m0.ev>0){m0.ev--;a.carry={ch:'o',col:hsl(48,40,92)};a.st='retPut';a.tgt='r'+NURSE;}else resetTask(a);break;
@@ -220,7 +223,7 @@ function choose(a){
  return pool[(rnd()*pool.length)|0];
 }
 function updAnts(dt){
- queen.a+=dt;queen.t-=dt;if(queen.t<0){queen.t=7+rnd()*3;if(queen.eggs<5)queen.eggs++;}
+ queen.a+=dt;queen.t-=dt;if(queen.t<0){queen.t=7+rnd()*3;if(queen.eggs<5){queen.eggs++;queen.lay=.7;SND('egg');}}queen.lay=Math.max(0,(queen.lay||0)-dt);
  const nr=rooms[NURSE];if(rnd()<dt*.08&&nr.eggs>0&&nr.larva<6&&!rain){nr.eggs--;nr.larva++;}
  const night=NT>.6;
  for(const a of ants){
@@ -264,10 +267,10 @@ function updAnts(dt){
 // ---------- events: rain, intruders, army, big food, flight ----------
 function startEvent(){
  const order=['rain','beetle','big','army','spider','rain','big'];const ev=order[evIdx++%order.length];
- if(ev==='rain'){rain={t:0,dur:16+rnd()*6};for(const a of ants){if(a.r<S&&a.st!=='haulBig'){a.st='home';a.tgt='r0';}}
+ if(ev==='rain'){rain={t:0,dur:16+rnd()*6};SND('thunder');setTimeout(()=>SND('thunder'),7000);for(const a of ants){if(a.r<S&&a.st!=='haulBig'){a.st='home';a.tgt='r0';}}
   for(const a of ants)if(a.role==='nurse'){a.carry=null;a.st='evGet';a.tgt='r'+NURSE;}}
- else if(ev==='beetle'||ev==='spider'){const L=rnd()<.5;foes.push({type:ev,c:L?0:cols-1,r:S-1,pc:L?0:cols-1,pr:S-1,t:1,spd:ev==='spider'?4.2:2.6,hp:ev==='spider'?6:9,dc:L?1:-1,dr:0,fl:0,hit:0,eat:0});dirty=true;}
- else if(ev==='army'){for(let k=0;k<9;k++)foes.push({type:'black',c:cols-1-k*2,r:S-1,pc:cols-1-k*2,pr:S-1,t:1,spd:3+rnd(),hp:2.5,dc:-1,dr:0,fl:rnd()*9,hit:0,eat:0});dirty=true;}
+ else if(ev==='beetle'||ev==='spider'){SND('scratch');const L=rnd()<.5;foes.push({type:ev,c:L?0:cols-1,r:S-1,pc:L?0:cols-1,pr:S-1,t:1,spd:ev==='spider'?4.2:2.6,hp:ev==='spider'?6:9,dc:L?1:-1,dr:0,fl:0,hit:0,eat:0});dirty=true;}
+ else if(ev==='army'){SND('tension',{min:3000});for(let k=0;k<9;k++)foes.push({type:'black',c:cols-1-k*2,r:S-1,pc:cols-1-k*2,pr:S-1,t:1,spd:3+rnd(),hp:2.5,dc:-1,dr:0,fl:rnd()*9,hit:0,eat:0});dirty=true;}
  else if(ev==='big'){if(!big){const L=rnd()<.5,tp=rnd()<.5?'hopper':'candy';big={c:L?cols*.12:cols*.82,len:tp==='hopper'?5:3,tp,need:tp==='hopper'?5:4,car:[]};dirty=true;}}
 }
 function updEvents(dt){
@@ -275,6 +278,7 @@ function updEvents(dt){
  if(rain){rain.t+=dt;for(let k=0;k<2;k++)parts.push({k:'rain',x:rnd()*cols,y:0,vy:28+rnd()*10});
   for(const c of [E,E+1]){const i=idx(c,S);if(TUN[i])WT[i]=Math.min(1,WT[i]+dt*3.2);}
   if(rain.t>rain.dur){rain=null;}}
+ SNDSET('rain',rain?Math.min(1,rain.t/2,(rain.dur-rain.t)/2):0);if((fid&31)===0)SNDSET('night',NT);
  wTick+=dt;if(wTick>.066){wTick=0;stepWater();}
  flood=0;for(let i=0;i<n;i++)if(!SUMP[i])flood+=WT[i];
  watT-=dt;if(watT<0){watT=1;updWaterField();
@@ -295,10 +299,10 @@ function updEvents(dt){
     let pick=null;if(F&&F[i]<INF){const b=opts.filter(o=>F[idx(o[0],o[1])]<F[i]);if(b.length)pick=b[(rnd()*b.length)|0];}
     if(!pick&&opts.length)pick=opts[(rnd()*opts.length)|0];
     if(pick){f.pc=f.c;f.pr=f.r;f.c=pick[0];f.r=pick[1];f.dc=pick[2];f.dr=pick[3];f.t=0;}}}
-  let dmg=0;for(const a of ants){if(a.st!=='fight')continue;if(Math.abs(a.c-f.c)+Math.abs(a.r-f.r)<=1){dmg+=a.role==='soldier'?1.3:.5;a.pause=.25;a.biting=.3;
+  let dmg=0;for(const a of ants){if(a.st!=='fight')continue;if(Math.abs(a.c-f.c)+Math.abs(a.r-f.r)<=1){dmg+=a.role==='soldier'?1.3:.5;a.pause=.25;a.biting=.3;SND('bite',{min:160});
     if(f.type==='black'){a.hp-=dt*.35;}else if(rnd()<dt*.6){a.alarm=2;}}}
   if(dmg>0){f.hp-=dt*dmg;f.hit=.12;if(rnd()<dt*8)spark(f.c+(rnd()-.5)*2,f.r-.5,rnd()<.5?'*':'x',hsl(50,90,75),.25);if(f.t>.5)f.t=.5;}
-  if(f.hp<=0){foes.splice(k,1);const pcs=f.type==='black'?1:4;for(let q=0;q<pcs;q++){const c=cl(f.c+q-1,0,cols-1);if(walk(idx(c,f.r)))tfood.push({i:idx(c,f.r),ch:f.type==='black'?'8':q%2?'%':'#',col:f.type==='black'?hsl(230,10,40):hsl(150,30,40)});}
+  if(f.hp<=0){SND('thud');foes.splice(k,1);const pcs=f.type==='black'?1:4;for(let q=0;q<pcs;q++){const c=cl(f.c+q-1,0,cols-1);if(walk(idx(c,f.r)))tfood.push({i:idx(c,f.r),ch:f.type==='black'?'8':q%2?'%':'#',col:f.type==='black'?hsl(230,10,40):hsl(150,30,40)});}
    for(let q=0;q<8;q++)spark(f.c,f.r,'*',hsl(40,90,70),.5,(rnd()-.5)*10,(rnd()-.5)*6);dirty=true;}
  }
  for(let k=ants.length-1;k>=0;k--){const a=ants[k];if(a.biting>0)a.biting-=dt;if(a.hp<=0){spark(a.c,a.r,'x',hsl(0,60,60),.8);ants.splice(k,1);}}
@@ -360,7 +364,7 @@ function checkJobs(dt){
 }
 
 // ---------- surface food, worm, mole, particles ----------
-function dropFood(px,py){const c=cl(Math.round(px/cw),1,cols-2);for(let k=0;k<3;k++)parts.push({k:'crumb',x:c+(rnd()-.5)*3,y:Math.min(py/chH,S-2),vy:0,vx:(rnd()-.5)*2});}
+function dropFood(px,py){SND('tick',{min:120});const c=cl(Math.round(px/cw),1,cols-2);for(let k=0;k<3;k++)parts.push({k:'crumb',x:c+(rnd()-.5)*3,y:Math.min(py/chH,S-2),vy:0,vx:(rnd()-.5)*2});}
 function addFood(c){c=cl(Math.round(c),1,cols-2);let f=sfood.find(f=>Math.abs(f.c-c)<=2);
  const types=[[',',hsl(42,70,62)],['o',hsl(36,60,58)],['*',hsl(50,80,66)],['%',hsl(20,55,55)]],t=types[(rnd()*types.length)|0];
  if(f)f.amt=Math.min(f.amt+1,14);else{sfood.push({c,amt:1,ch:t[0],col:t[1]});}dirty=true;}
@@ -377,14 +381,30 @@ function updParts(dt){
  if(w.r<S+4)w.h=Math.abs(w.h);if(w.r>rows-5)w.h=-Math.abs(w.h);
  if(w.c<1)w.h=0;if(w.c>cols-2)w.h=Math.PI;
  const l=w.pts[0];if(!l||Math.hypot(l[0]-w.c,(l[1]-w.r)*asp)>.9){w.pts.unshift([w.c,w.r]);if(w.pts.length>8)w.pts.pop();}
- w.pts.forEach((p,k)=>putH(p[0],p[1],k===0?'@':k%2?'o':'0',hsl(345,45,58-k*2)));
- if(!mole&&tN>nextMole){const d=rnd()<.5;mole={x:d?-8:cols+8,r:Math.round(rows*(.42+rnd()*.4)),d,a:0};}
- if(mole){mole.a+=dt;mole.x+=(mole.d?1:-1)*3.2*dt;const r=mole.r+Math.round(Math.sin(mole.a*1.2)*.6);
-  const L=mole.d?["  .--._  "," (o    '>",'  "m""m"  ']:["  _.--.  ","<'    o) ",'  "m""m"  '],c0=Math.round(mole.x)-4;
-  for(let k=0;k<3;k++)for(let q=0;q<L[k].length;q++){const ch=L[k][q];if(ch!==' ')putH(c0+q,r-1+k,ch,ch==='o'?hsl(0,0,15):ch==='>'||ch==='<'?hsl(350,55,72):ch==='"'||ch==='m'?hsl(350,40,70):hsl(260,10,34));}
-  if(rnd()<dt*8)dirtT.push({c:Math.round(mole.x)+(mole.d?-5:5),r:r+(rnd()*3|0)-1,t:tN});
-  for(const a of ants)if(Math.abs(a.c-mole.x)<8&&Math.abs(a.r-r)<5)a.alarm=Math.max(a.alarm,2);
-  if(mole.x>cols+10||mole.x<-10){mole=null;nextMole=tN+45+rnd()*20;}}
+ w.sp=1.4+1.6*Math.max(0,Math.sin(tN*3.2));
+ w.pts.forEach((p,k)=>{const s=Math.sin(tN*6-k*1.1);putH(p[0],p[1],k===0?(s>0?'@':'O'):s>.35?'0':s<-.35?'o':'O',hsl(345,45+(k===0?10:0),60-k*2+s*6));});
+ if(!mole&&tN>nextMole){const d=rnd()<.5;mole={x:d?-10:cols+10,r:Math.round(rows*(.42+rnd()*.4)),d,a:0,sniff:0};}
+ if(mole){mole.a+=dt;const M=mole;
+  if(M.sniff>0)M.sniff-=dt;else if(rnd()<dt*.12){M.sniff=1+rnd();}
+  const cyc=M.a%1.1,digging=cyc<.72&&!(M.sniff>0),dir=M.d?1:-1;
+  if(digging)M.x+=dir*4.4*dt*(.6+.8*Math.sin(cyc/.72*Math.PI));
+  const bob=digging?(Math.sin(M.a*12)>0?0:1):0,r=M.r+Math.round(Math.sin(M.a*.8)*.6);
+  const claw=digging?((M.a*9)|0)%3:1,nose=M.sniff>0?((M.a*14)|0)%2:0;
+  const R0="   __.---.__     ",
+   R1=" _/   .     o '-"+(nose?"o":">")+" ",
+   R2="(______________/ ",
+   R3=["  m  m    =M    ","   m  m   M=    ","  m   m  =M     "][claw];
+  const mir=t=>[...t].reverse().map(ch=>({'/':'\\','\\':'/','(':')',')':'(','<':'>','>':'<'})[ch]||ch).join('');
+  const L=[R0,R1,R2,R3].map(t=>M.d?t:mir(t)),c0=Math.round(M.x)-8,r0=r-2+bob*0;
+  for(let k=0;k<4;k++)for(let q=0;q<L[k].length;q++){const ch=L[k][q];if(ch===' ')continue;
+   const col=ch==='o'&&k===1?(nose&&(q===(M.d?16:0))?hsl(350,60,74):hsl(0,0,88)):(ch==='>'||ch==='<')&&k===1?hsl(350,60,74):(ch==='m'||ch==='M'||ch==='=')?hsl(350,45,72):k===0?hsl(260,8,46):hsl(260,10,36);
+   putH(c0+q,r0+k-(k<3?bob:0),ch,col);}
+  if(nose&&rnd()<dt*6)spark(c0+(M.d?17:-1),r0+1,'"',hsl(0,0,80),.25);
+  if(digging&&rnd()<dt*14){const bx=c0+(M.d?-1:17);spark(bx,r0+1+rnd()*2,[':','.',',',';'][(rnd()*4)|0],hsl(30,40,48),.5,-dir*(6+rnd()*6),-(1+rnd()*2));}
+  if(digging&&rnd()<dt*10)dirtT.push({c:c0+(M.d?(rnd()*6|0):10+(rnd()*6|0)),r:r0+(rnd()*4|0),t:tN});
+  if(digging)SND('rumble',{min:1100});
+  for(const a of ants)if(Math.abs(a.c-M.x)<9&&Math.abs(a.r-r)<5)a.alarm=Math.max(a.alarm,2);
+  if(M.x>cols+12||M.x<-12){mole=null;nextMole=tN+45+rnd()*20;}}
  for(let k=dirtT.length-1;k>=0;k--)if(tN-dirtT[k].t>5)dirtT.splice(k,1);
  if(tN>nextDrop){nextDrop=tN+18+rnd()*14;if(!rain)dropFood(W*(.1+rnd()*.8),(S-6)*chH);}
  if(rnd()<dt*.8){const m=rooms[SUMPR];spark(m.cx+(rnd()-.5)*m.rx,m.cy-m.ry,'.',hsl(200,70,70),.6,0,4);}
@@ -392,6 +412,56 @@ function updParts(dt){
 function put(x,y,ch,col){const c=Math.round(x),r=Math.round(y);if(!inb(c,r))return;const i=idx(c,r);OVk[i]=ch;OVc[i]=col;OVs[i]=fid;}
 function putH(x,y,ch,col){const c=Math.round(x),r=Math.round(y);if(!inb(c,r))return;const i=idx(c,r);OVk[i]=ch;OVc[i]=col;OVs[i]=fid;
  if(c>0)HL[i-1]=fid;if(c<cols-1)HL[i+1]=fid;if(r>0)HL[i-cols]=fid;if(r<rows-1)HL[i+cols]=fid;}
+
+
+// ---------- extra critters ----------
+function updCritters(dt){
+ // grubs in soil
+ for(const g of grubs){g.ph+=dt;const f=((g.ph*1.6)|0)%4;putH(g.c,g.r,['C','c','(','c'][f],hsl(45,35,82));putH(g.c+1,g.r,f%2?'.':':',hsl(40,30,70));
+  if(rnd()<dt*.05){const nc=g.c+(rnd()<.5?-1:1);if(inb(nc,g.r)&&inb(nc+1,g.r)&&!TUN[idx(nc,g.r)]&&!TUN[idx(nc+1,g.r)]&&!OBS[idx(nc,g.r)]&&!OBS[idx(nc+1,g.r)])g.c=nc;}}
+ // slime trail
+ for(let c=0;c<cols;c++){if(SL[c]>0){SL[c]-=dt*.04;if(SL[c]>.1&&((tN*2+c)|0)%3)put(c,S-1,'.',hsl(200,20,70+SL[c]*20));}}
+ // ladybug
+ const B=bug;B.t-=dt;B.cl+=dt;
+ if(B.st==='walk'){if(B.t<0){B.t=2+rnd()*4;if(rnd()<.3){B.st='climb';B.c0=Math.round(B.x);}else if(rnd()<.15){B.st='fly';B.vy=-2;}else B.d=rnd()<.5?-1:1;}
+  B.x+=B.d*1.3*dt;if(B.x<1||B.x>cols-3)B.d*=-1;B.y=S-1;}
+ else if(B.st==='climb'){const h=GRS[B.c0]||1,top=S-1-h;B.y=Math.max(top,B.y-dt*1.5);if(B.t<0){B.st='walk';B.y=S-1;B.t=2+rnd()*3;}}
+ else if(B.st==='fly'){B.y-=dt*4;B.x+=Math.sin(B.cl*3)*dt*4+B.d*dt*3;if(B.y<-2){B.st='walk';B.x=rnd()<.5?0:cols-3;B.d=B.x<1?1:-1;B.y=S-1;B.t=4;}}
+ {const x=Math.round(B.x),y=Math.round(B.y);const op=B.st==='fly'&&((B.cl*16)|0)%2;
+  if(B.st==='fly'){put(x,y-1,op?'^':'v',hsl(200,30,85));put(x+2,y-1,op?'^':'v',hsl(200,30,85));}
+  put(x,y,B.d>0?'(':'(',hsl(0,85,52));put(x+1,y,':',hsl(0,0,8));put(x+2,y,')',hsl(0,85,52));put(B.d>0?x+3:x-1,y,'.',hsl(0,0,15));}
+ // snail
+ const N=snail;if(N.hide>0)N.hide-=dt;else{N.x+=N.d*.35*dt;if(N.x<2||N.x>cols-4)N.d*=-1;SL[cl(Math.round(N.x-N.d*1),0,cols-1)]=1;}
+ {const x=Math.round(N.x);if(N.hide>0)put(x,S-1,'@',hsl(38,55,55));
+  else{const L=N.d>0?['@','_','_']:['_','_','@'];L.forEach((ch,q)=>put(x+q-1,S-1,ch,ch==='@'?hsl(38,55,55):hsl(60,20,70)));
+   const hx=N.d>0?x+1:x-1,tw=((tN*1.5)|0)%2;put(hx,S-2,tw?'"':"'",hsl(60,20,72));}}
+ // bird
+ if(!bird&&tN>nextBird&&!rain&&NT<.4){const L=rnd()<.5;bird={x:L?-3:cols+2,y:2,tx:cols*(.15+rnd()*.7),st:'in',t:0,d:L?1:-1,pk:0,fl:0};SND('flutter');}
+ if(bird){const Bd=bird;Bd.t+=dt;Bd.fl+=dt;
+  if(Bd.st==='in'){const dx=Bd.tx-Bd.x,dy=(S-2)-Bd.y;Bd.x+=Math.sign(dx)*Math.min(Math.abs(dx),dt*14);Bd.y+=Math.sign(dy)*Math.min(Math.abs(dy),dt*6);Bd.d=dx>=0?1:-1;
+   if(Math.abs(dx)<.5&&Math.abs(dy)<.5){Bd.st='ground';Bd.t=0;Bd.next=.6;SND('chirpBird');}}
+  else if(Bd.st==='ground'){Bd.next-=dt;
+   if(Bd.next<0){if(rnd()<.55){Bd.pk=.35;Bd.next=.5+rnd()*.5;SND('peck',{min:200});const f=sfood.find(f=>Math.abs(f.c-(Bd.x+Bd.d*2))<=2);if(f){f.amt--;if(f.amt<=0){sfood.splice(sfood.indexOf(f),1);dirty=true;}}}
+    else{Bd.hop=.3;Bd.x+=Bd.d*(1+rnd()*2);if(rnd()<.3)Bd.d*=-1;Bd.next=.5+rnd()*.7;}}
+   Bd.pk-=dt;Bd.hop=Math.max(0,(Bd.hop||0)-dt);
+   for(const a of ants)if(a.r<S+1&&Math.abs(a.c-Bd.x)<8){a.alarm=Math.max(a.alarm,1.8);if(a.st!=='haulBig'&&a.st!=='fight'){a.st='home';a.tgt='r0';}}
+   if(Bd.t>9||Bd.x<1||Bd.x>cols-3){Bd.st='out';SND('flutter');}}
+  else{Bd.y-=dt*7;Bd.x+=Bd.d*dt*10;if(Bd.y<-4){bird=null;nextBird=tN+40+rnd()*30;}}
+  if(bird){const x=Math.round(Bd.x),y=Math.round(Bd.y)-((Bd.hop||0)>0?1:0),R_=Bd.d>0,fly=Bd.st!=='ground',wf=((Bd.fl*12)|0)%2,pk=Bd.pk>0;
+   const body=hsl(28,40,42),light=hsl(35,40,62),beak=hsl(45,90,60),eye=hsl(0,0,92);
+   const P=(dx,dy,ch,col)=>put(x+(R_?dx:-dx),y+dy,ch,col);
+   if(fly){P(-1,-1,wf?'\\':'/',light);P(1,-1,wf?'/':'\\',light);}
+   else P(0,-1,',',light);
+   P(-1,0,'(',body);P(0,0,'o',eye);P(1,0,pk?' ':(R_?')':'('),body);
+   if(pk){P(1,1,R_?'\\':'/',body);P(2,1,'v',beak);}else P(2,0,R_?'>':'<',beak);
+   if(!fly)P(0,1,'^',hsl(25,70,55));P(-2,0,R_?'=':'=',body);}}
+}
+function scareCritters(x,y){const [c,r]=[Math.floor(x/cw),Math.floor(y/chH)];
+ if(bird&&bird.st==='ground'&&Math.abs(c-bird.x)<6&&Math.abs(r-bird.y)<4){bird.st='out';SND('flutter');}
+ if(bug&&Math.abs(c-bug.x)<4&&Math.abs(r-bug.y)<3&&bug.st!=='fly'){bug.st='fly';SND('buzz',{min:300});}
+ if(snail&&Math.abs(c-snail.x)<4&&r>=S-3&&r<=S){snail.hide=3;}
+ for(const g of grubs)if(Math.abs(c-g.c)<3&&Math.abs(r-g.r)<2){g.ph+=2;spark(g.c,g.r-1,'!',hsl(50,90,75),.4);}
+}
 
 // ---------- drawing of entities ----------
 function drawWorld(){
@@ -401,14 +471,15 @@ function drawWorld(){
   if(k<R1.eggs)put(c,r,'o',hsl(48,35,90));else if(k<R1.eggs+R1.larva)put(c,r,((tN*2+k)|0)%2?'c':'C',hsl(45,45,80));});
  const R3=rooms[TRASH];R3.floor.forEach((i,k)=>{if(R3.trash>k)put(i%cols,(i/cols)|0,'%;,'[(k*3)%3],hsl(30,12,40));});
  const RF=rooms[FARM];RF.floor.forEach((i,k)=>{if(RF.mulch>k)put(i%cols,(i/cols)|0,',;'[k%2],hsl(80,35,32));});
- mush.forEach(m=>{m.g=Math.min(1,m.g+.004*(rooms[FARM].mulch/6)/60);const c=m.i%cols,r=(m.i/cols)|0;const ch=m.g<.35?'.':m.g<.7?'t':'T';put(c,r-1,ch,hsl(40,25,70+m.g*20));if(m.g>.7)put(c,r-2,'.',hsl(40,20,60+Math.sin(tN*2+c)*10));});
+ mush.forEach(m=>{m.g=Math.min(1,m.g+.004*(rooms[FARM].mulch/6)/60);const c=m.i%cols,r=(m.i/cols)|0;const ch=m.g<.35?'.':m.g<.7?'t':'T';put(c,r-1,ch,hsl(40,25,70+m.g*20));if(m.g>.7)put(c,r-2,'.',hsl(40,20,60+Math.sin(tN*2+c)*10));if(m.g>.85&&rnd()<.006)spark(c,r-2,'.',hsl(60,40,80),1.6,(rnd()-.5)*.6,-.7);});
  aphids.forEach((a,k)=>{a.o=Math.max(0,a.o-1/60);const rf=rooms[RANCH].floor;if(rnd()<.004){const j=rf.indexOf(a.i);a.i=rf[cl(j+(rnd()<.5?-1:1),0,rf.length-1)];}
-  put(a.i%cols,(a.i/cols)|0,a.o>.2?'O':((tN*3+k)|0)%3?'o':'0',hsl(95,60,a.o>.2?70:52));});
+  a.hop=Math.max(0,(a.hop||0)-1/60);if(rnd()<.003)a.hop=.25;put(a.i%cols,((a.i/cols)|0)-(a.hop>0?1:0),a.o>.2?'O':((tN*3+k)|0)%3?'o':'0',hsl(95,60,a.o>.2?70:52));if(a.o>.6)put(a.i%cols+1,((a.i/cols)|0)-1,'.',hsl(50,95,70));});
  for(let k=BASE_ROOMS;k<rooms.length;k++){const m=rooms[k];(m.floor||[]).forEach((i,q)=>{if((m.store||0)>q)put(i%cols,(i/cols)|0,'o0'[(q)%2],hsl(40,55,58));});}
  const Q=rooms[QUEEN];{const qc=Math.round(Q.cx)-5,qr=Math.round(Q.cy+Q.ry*.4);const pulse=((queen.a*1.5)|0)%2,ant2=((queen.a*2.3)|0)%2;
   const L=[ant2?"   \\ /     ":"   | |     "," <(@)=(##)=(#####)",pulse?"  /|\\ /|\\ /|\\ ":"  |/| |\\| /|\\ "];
   for(let k=0;k<3;k++)for(let q=0;q<L[k].length;q++){const ch=L[k][q];if(ch!==' ')putH(qc+q-3,qr-2+k,ch,ch==='@'?hsl(0,0,90):ch==='#'?hsl(14,60,46+pulse*4):hsl(16,50,40));}
-  for(let e=0;e<queen.eggs;e++)put(qc+14+e,qr,'o',hsl(48,35,92));}
+  for(let e=0;e<queen.eggs;e++)put(qc+14+e,qr,'o',hsl(48,35,92));
+  if(queen.lay>0){put(qc+15+queen.eggs-1,qr-1,'*',hsl(50,90,80));for(let q=10;q<15;q++)put(qc+q-3,qr-1,'#',hsl(20,70,62));}}
  if(big){const B=big,c0=Math.round(B.c),strain=B.car.length<B.need;
   const ln=B.tp==='hopper'?(B.c<E?'<##=x':'x=##>'):'(@)';for(let q=0;q<ln.length;q++)putH(c0+q,S-1,ln[q],B.tp==='hopper'?hsl(90,50,45):q===1?hsl(330,80,70):hsl(330,60,82));
   if(B.tp==='hopper')putH(c0+1,S-2,'/',hsl(90,40,40));
@@ -427,9 +498,11 @@ function drawWorld(){
   const col=al?hsl(2,90,64):sol?hsl(4,70,a.r<S?30:50):wing?hsl(20,60,a.r<S?40:64):hsl(12,80,a.r<S?34:60);
   const hc=al?hsl(2,95,72):sol?hsl(6,75,a.r<S?36:58):hsl(14,85,a.r<S?40:68);
   const hx=x+a.dc,hy=y+a.dr;
-  const head=sol?(a.biting>0?'X':'O'):a.dc>0?'>':a.dc<0?'<':a.dr>0?'v':'^';
+  const head=sol?(a.biting>0||((a.st==='patrol'||a.st==='guard')&&((tN*2.2+a.fl)|0)%5===0)?'X':'O'):a.dc>0?'>':a.dc<0?'<':a.dr>0?'v':'^';
   if(a.st==='sleeping'){put(x,y,'-',col);put(hx,hy,'o',hc);continue;}
-  put(x,y,body,col);put(hx,hy,head,hc);
+  const groom=a.rest>0&&a.rest<9;
+  put(x,y,groom?(((tN*4+a.fl)|0)%2?'%':'8'):body,col);put(hx,hy,head,hc);
+  if((groom||a.pause>0)&&((tN*3+a.fl)|0)%2)put(hx+a.dc*.5,hy-1,a.dc<0?'\\':'/',hsl(14,60,62));
   if(wing)put(x,y-1,((a.fl*1.5)|0)%2?'^':'~',hsl(200,30,85));
   if(a.carry)put(hx+a.dc,hy+a.dr,a.carry.ch,a.carry.col);
   if(a.alarm>1.6)put(hx,hy-1,'!',hsl(50,95,70));
@@ -457,7 +530,7 @@ function frame(now){
  updEvents(dt);checkJobs(dt);updAnts(dt);
  if(held&&!moved0&&tN-downT>.45&&!blocked)doBlock();
  if(held&&heldSurf&&!moved0&&tN-lastFood>.25&&tN-downT>.3){lastFood=tN;dropFood(px0,py0);}
- updParts(dt);drawWorld();
+ updParts(dt);updCritters(dt);drawWorld();
  ctx.setTransform(dpr,0,0,dpr,0,0);
  const rd=rain?Math.max(0,Math.min(1,rain.t/2,(rain.dur-rain.t)/2)):0,dk=Math.max(NT,rd*.55);
  const skyH=S*chH;const top=mixC([126,196,232],[8,14,40],dk),bot=mixC([214,232,214],[22,30,60],dk);
@@ -510,7 +583,7 @@ function frame(now){
 // ---------- touch ----------
 let held=false,touched=false,px0=0,py0=0,downT=0,moved0=false,blocked=false,heldSurf=false,lastFood=0,lastC=-1,lastR=-1,lastP=null;
 function cellAt(x,y){return[Math.floor(x/cw),Math.floor(y/chH)];}
-function doBlock(){blocked=true;const [c0,r0]=cellAt(px0,py0);if(r0<=S+1)return;
+function doBlock(){blocked=true;const [c0,r0]=cellAt(px0,py0);if(r0<=S+1)return;SND('thud');
  for(let r=r0-2;r<=r0+2;r++)for(let c=c0-3;c<=c0+3;c++){if(!inb(c,r)||r<=S+1)continue;const dx=(c-c0)/3.2,dy=(r-r0)/2;if(dx*dx+dy*dy<=1){const i=idx(c,r);if(TUN[i]&&!SUMP[i]){TUN[i]=0;FR[i]=1;NEWT[i]=-1;PH[i]=0;WT[i]=0;}}}
  dirty=true;recompute();
  for(const a of ants){if(!walk(idx(a.c,a.r))){let best=null,bd=1e9;for(let r=a.r-4;r<=a.r+4;r++)for(let c=a.c-6;c<=a.c+6;c++){if(inb(c,r)&&walk(idx(c,r))){const d=Math.abs(c-a.c)+Math.abs(r-a.r);if(d<bd){bd=d;best=[c,r];}}}
@@ -520,9 +593,9 @@ function doBlock(){blocked=true;const [c0,r0]=cellAt(px0,py0);if(r0<=S+1)return;
  jobs.length=0;jobT=1.2;
  for(let q=0;q<10;q++)spark(c0+(rnd()-.5)*6,r0+(rnd()-.5)*3,[':','.','#'][q%3],hsl(32,45,55),.6,(rnd()-.5)*6,-3);
 }
-function alarmAt(x,y){const [c0,r0]=cellAt(x,y);for(const a of ants){if(Math.abs(a.c-c0)<=5&&Math.abs(a.r-r0)<=3)a.alarm=2.6;}
+function alarmAt(x,y){const [c0,r0]=cellAt(x,y);SND('tick');for(const a of ants){if(Math.abs(a.c-c0)<=5&&Math.abs(a.r-r0)<=3)a.alarm=2.6;}
  for(const f of foes)if(Math.abs(f.c-c0)<=3&&Math.abs(f.r-r0)<=2){f.hp-=1.2;f.hit=.2;spark(f.c,f.r-1,'*',hsl(50,90,75),.3);}}
-function digTo(x,y){const [c,r]=cellAt(x,y);if(r<=S)return;
+function digTo(x,y){const [c,r]=cellAt(x,y);if(r<=S)return;SND('scratch',{min:70});
  if(lastC>=0){const st=Math.max(Math.abs(c-lastC),Math.abs(r-lastR)*2,1);
   for(let k=0;k<=st;k++){const cc_=Math.round(lastC+(c-lastC)*k/st),rr=Math.round(lastR+(r-lastR)*k/st);
    [0,1].forEach(o=>{if(!inb(cc_+o,rr)||rr<=S)return;const i=idx(cc_+o,rr);if(OBS[i]){if(rnd()<.2)spark(cc_+o,rr-1,'*',hsl(45,40,85),.3);return;}if(carve(cc_+o,rr)&&RID[i]<0)NEWT[i]=tN;});}}
@@ -531,6 +604,7 @@ function digTo(x,y){const [c,r]=cellAt(x,y);if(r<=S)return;
  lastC=c;lastR=r;}
 addEventListener('pointerdown',e=>{held=true;moved0=false;blocked=false;px0=e.clientX;py0=e.clientY;downT=tN;lastC=-1;lastP=[px0,py0];
  const [c,r]=cellAt(px0,py0);heldSurf=r<S;
+ scareCritters(px0,py0);
  if(heldSurf){dropFood(px0,py0);lastFood=tN;}else{alarmAt(px0,py0);}
  if(!touched){touched=true;hint.style.opacity=0;}});
 addEventListener('pointermove',e=>{if(!held)return;const x=e.clientX,y=e.clientY;

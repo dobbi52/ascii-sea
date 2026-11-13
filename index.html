@@ -12,16 +12,19 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;back
 #sw{position:fixed;z-index:3;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));display:flex;gap:6px;padding:5px;border-radius:12px;background:rgba(0,0,0,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 #sw canvas{width:52px;height:34px;border-radius:7px;cursor:pointer;opacity:.55;outline:1px solid rgba(255,255,255,.15);transition:opacity .3s,transform .3s,outline-color .3s;display:block}
 #sw canvas.on{opacity:1;transform:scale(1.08);outline:1.5px solid var(--hi)}
+#snd{width:34px;height:34px;border-radius:7px;cursor:pointer;display:block;outline:1px solid rgba(255,255,255,.15);opacity:.6;transition:opacity .3s}
+#snd.on{opacity:1;outline-color:rgba(255,255,255,.55)}
 </style>
 </head>
 <body>
 <iframe id="f" title="글자 풍경"></iframe>
 <canvas id="fx"></canvas>
-<div id="sw"><canvas data-s="sea" style="--hi:#6fe0ff" aria-label="바닷속"></canvas><canvas data-s="forest" style="--hi:#9fe070" aria-label="숲속 연못"></canvas><canvas data-s="ant" style="--hi:#f0a060" aria-label="개미굴"></canvas></div>
+<div id="sw"><canvas data-s="sea" style="--hi:#6fe0ff" aria-label="바닷속"></canvas><canvas data-s="forest" style="--hi:#9fe070" aria-label="숲속 연못"></canvas><canvas data-s="ant" style="--hi:#f0a060" aria-label="개미굴"></canvas><canvas id="snd" aria-label="소리 켜기/끄기"></canvas></div>
+<script src="sfx.js"></script>
 <script>
 (()=>{
 const SC={sea:{src:'sea.html',hues:[185,200,45,320,24]},forest:{src:'forest.html',hues:[95,120,60,352,196]},ant:{src:'ant.html',hues:[24,12,40,95,30]}};
-const f=document.getElementById('f'),fx=document.getElementById('fx'),c=fx.getContext('2d'),btns=[...document.querySelectorAll('#sw canvas')];
+const f=document.getElementById('f'),fx=document.getElementById('fx'),c=fx.getContext('2d'),btns=[...document.querySelectorAll('#sw canvas[data-s]')];
 const GL='@#%&*+=~-:;.oO0/\\|<>';
 let cur=null,busy=false;
 function size(){const d=Math.min(devicePixelRatio||1,2);fx.width=innerWidth*d;fx.height=innerHeight*d;c.setTransform(d,0,0,d,0,0);}
@@ -44,20 +47,28 @@ function anim(dur,from,to,hues){return new Promise(res=>{const t0=performance.no
 async function go(s,instant){
  if(s===cur||busy)return;busy=true;mark(s);
  const hues=SC[s].hues.concat(cur?SC[cur].hues:[]);
- if(!instant)await anim(380,0,1,hues);
+ if(!instant){SFX.play('glitch');await anim(380,0,1,hues);}
  await new Promise(res=>{f.onload=()=>res();f.src=SC[s].src;setTimeout(res,1500);});
- cur=s;try{f.contentWindow.focus();}catch(e){}
+ cur=s;SFX.setScene(s);try{f.contentWindow.focus();}catch(e){}
  if(!instant)await anim(520,1,0,SC[s].hues);
  c.clearRect(0,0,innerWidth,innerHeight);busy=false;
  if(pick()!==s)go(pick());
 }
+try{if(localStorage.getItem('ascii-snd')==='1'){/* needs a tap: show as off until pressed */}}catch(e){}
 btns.forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.s;if(location.hash!=='#'+s)history.replaceState(null,'','#'+s);go(s);}));
+// sound toggle
+const snd=document.getElementById('snd');snd.width=68;snd.height=68;
+snd.addEventListener('click',()=>{const v=SFX.setOn(!SFX.isOn());snd.classList.toggle('on',v);try{localStorage.setItem('ascii-snd',v?'1':'0');}catch(e){}});
 addEventListener('hashchange',()=>go(pick()));
 // mini windows: tiny living dioramas
 const MF='bold 9px "SF Mono",ui-monospace,Menlo,monospace';
 btns.forEach(b=>{b.width=104;b.height=68;});
 function hs(h,s,l){return'hsl('+h+','+s+'%,'+l+'%)';}
-function mini(t){btns.forEach(b=>{const g=b.getContext('2d'),s=b.dataset.s;g.setTransform(2,0,0,2,0,0);
+function drawSnd(t){const g=snd.getContext('2d'),o=SFX.isOn();g.setTransform(2,0,0,2,0,0);g.fillStyle='#10141c';g.fillRect(0,0,34,34);g.font=MF;g.textBaseline='top';
+ g.fillStyle=o?'#e8f4ff':'#7d8794';g.fillText('[',5,12);g.fillText('>',10,12);
+ if(o){for(let k=0;k<3;k++){const h=Math.round(2+3*Math.abs(Math.sin(t*6+k*1.3)));g.fillStyle='hsl('+(180+k*40)+',80%,70%)';g.fillRect(18+k*4,17-h,2,h*2);}}
+ else{g.fillStyle='#d06060';g.fillText('x',19,12);}}
+function mini(t){drawSnd(t);btns.forEach(b=>{const g=b.getContext('2d'),s=b.dataset.s;g.setTransform(2,0,0,2,0,0);
  const gr=g.createLinearGradient(0,0,0,34);
  if(s==='sea'){gr.addColorStop(0,'#0e5672');gr.addColorStop(1,'#04182a');}
  else if(s==='forest'){gr.addColorStop(0,'#2b4a22');gr.addColorStop(1,'#10200c');}

@@ -37,6 +37,7 @@ const cc=new Map();
 function hsl(h,s,l){h=((h%360)+360)%360;h=(h/4|0)*4;s=cl(s,0,100);s=(s/5|0)*5;l=cl(l,0,100);l=(l/2|0)*2;
  const k=h*1000000+s*1000+l;let v=cc.get(k);if(!v){v='hsl('+h+','+s+'%,'+l+'%)';cc.set(k,v);}return v;}
 const rnd=Math.random;
+const SND=(n,o)=>{try{if(parent!==window&&parent.SFX)parent.SFX.play(n,o);}catch(e){}},SNDSET=(k,v)=>{try{if(parent!==window&&parent.SFX)parent.SFX.set(k,v);}catch(e){}};
 
 // ---------- layout ----------
 const shelfTop=u=>.6+.025*Math.sin(u*7+1)+.015*Math.sin(u*19);
@@ -189,7 +190,7 @@ const SHARK={s:["            /|            ","  \\     _.-'  `'--.._     ","   >
 (()=>{const t=SHARK;let b=0;t.s.forEach((l,i)=>{if(l.trim().length>t.s[b].trim().length)b=i;});t.b=b;})();
 const OCT_T2=[" /|/\\|\\ "," /(/\\)\\ "," \\|\\/|/ "," (/\\/\\) "],OCT_T3=["~ ~  ~ ~"," ~ ~~ ~ ","~  ~ ~ ~"," ~ ~  ~~"];
 function spark(x,y,ch,col,life,vx,vy,g){if(sparks.length<200)sparks.push({x,y,ch,col,a:0,life,vx:vx||0,vy:vy||0,g});}
-function scareOct(){if(!oc||oc.st==='jet')return;
+function scareOct(){if(!oc||oc.st==='jet')return;SND('splash');
  for(let k=0;k<46;k++){const a=rnd()*6.28,v=25+rnd()*90;ink.push({x:oc.x+(rnd()-.5)*10,y:oc.y+(rnd()-.5)*8,vx:Math.cos(a)*v,vy:Math.sin(a)*v*.7-10,a:0,life:3.5+rnd()*2});}
  deposit(oc.x,oc.y,0,0,1.4,40);
  let best=oc.spot,bd=-1;spots.forEach((p,i)=>{const d=Math.hypot(p.x-oc.x,p.y-oc.y);if(i!==oc.spot&&d>bd){bd=d;best=i;}});
@@ -235,7 +236,7 @@ function updCrab(dt){
 }
 function putS2(c0,r,str,col){for(let k=0;k<str.length;k++)if(str[k]!==' ')putH(c0+k,r,str[k],col);}
 function updShark(dt){
- if(!shark&&tN>nextShark){const d=rnd()<.5;shark={x:d?-W*.4:W*1.4,y:H*(.28+rnd()*.3),d,fl:0,a:0,p:0};}
+ if(!shark&&tN>nextShark){const d=rnd()<.5;shark={x:d?-W*.4:W*1.4,y:H*(.28+rnd()*.3),d,fl:0,a:0,p:0};SND('tension',{min:4000});}
  if(!shark)return;shark.a+=dt;shark.fl+=dt*6;
  const dir=shark.d?1:-1;ringPush(shark.x,shark.y);
  shark.x+=(dir*62+RP[0]*40)*dt;shark.y+=(Math.sin(shark.a*.6)*10+RP[1]*30)*dt;
@@ -254,7 +255,7 @@ function turtCol(ch){return ch==='#'?hsl(32,55,42):ch==='.'?hsl(40,50,58):ch==='
 const RP=[0,0,0];
 function ringPush(x,y){RP[0]=0;RP[1]=0;RP[2]=0;for(const g of rings){const a=tN-g.t,R=a*230,dx=x-g.x,dy=y-g.y,d=Math.hypot(dx,dy)+1,b=Math.abs(d-R);
  if(b<20){const k=(1-b/20)*(1-a/1.8);RP[0]+=dx/d*k;RP[1]+=dy/d*k;RP[2]+=k;}}}
-function eatNear(f,rad){for(let k=food.length-1;k>=0;k--){const p=food[k];if(Math.abs(p.x-f.x)<rad&&Math.abs(p.y-f.y)<rad*.8){food.splice(k,1);f.nb=.25;if(rnd()<.5)bub(f.x,f.y-4,.15);return true;}}return false;}
+function eatNear(f,rad){for(let k=food.length-1;k>=0;k--){const p=food[k];if(Math.abs(p.x-f.x)<rad&&Math.abs(p.y-f.y)<rad*.8){food.splice(k,1);f.nb=.25;SND('gulp',{min:90});if(rnd()<.5)bub(f.x,f.y-4,.15);return true;}}return false;}
 function nearestFood(x,y,maxd){let b=null,bd=maxd;for(const p of food){const d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;b=p;}}return b;}
 function steer(f,dt,max){
  if(f.sch&&deep&&MIGv>.5&&deep.ang.lit>.5){const dx=deep.lx-f.x,dy=deep.ly-f.y,d=Math.hypot(dx,dy)+1;if(d<150){f.vx+=dx/d*140*dt;f.vy+=dy/d*140*dt;}}
@@ -351,7 +352,7 @@ function updCreatures(dt){
  for(let k=bubbles.length-1;k>=0;k--){const b=bubbles[k];b.a+=dt;
   const fi=fIdx(b.x,b.y);b.vy=Math.max(-90,b.vy-60*dt*(.5+b.s));b.vx+=(Math.sin(b.a*5+b.ph)*30+FX[fi]*120)*dt;b.vx*=Math.exp(-dt*2);
   b.x+=b.vx*dt;b.y+=b.vy*dt;
-  if(b.y<chH*1.5||b.a>12||solid(b.x,b.y)){if(b.y<chH*1.5&&b.s>.3)spark(b.x,chH*1.2,'*',hsl(185,60,92),.18);bubbles.splice(k,1);continue;}
+  if(b.y<chH*1.5||b.a>12||solid(b.x,b.y)){if(b.y<chH*1.5&&b.s>.3){SND('pop',{min:250});}if(b.y<chH*1.5&&b.s>.3)spark(b.x,chH*1.2,'*',hsl(185,60,92),.18);bubbles.splice(k,1);continue;}
   if(b.s>.75&&rnd()<dt*.6){b.s=.3;bub(b.x+3,b.y,.3);}
   put(b.x/cw,b.y/chH,b.s<.35?'.':b.s<.7?'o':'O',hsl(190,70,88));}
 }
@@ -391,7 +392,7 @@ function updFood(dt){
   p.x+=(p.vx+Math.sin(p.a*3+p.ph)*6)*dt;p.y+=(p.vy+FY[fi]*40)*dt;
   if(p.a>14||solid(p.x,p.y)||p.y>H){food.splice(k,1);continue;}
   put(p.x/cw,p.y/chH,[".",",","'","`"][(p.ph*4|0)%4],hsl(36,85,70));}
- if(feeding&&(tN*14|0)!==((tN-dt)*14|0)&&food.length<90){for(let q=0;q<2;q++)food.push({x:px0+(rnd()-.5)*26,y:py0+(rnd()-.5)*12,vx:(rnd()-.5)*30,vy:-12+rnd()*8,a:0,ph:rnd()*9});}
+ if(feeding&&(tN*14|0)!==((tN-dt)*14|0)&&food.length<90){SND('tick',{min:110});for(let q=0;q<2;q++)food.push({x:px0+(rnd()-.5)*26,y:py0+(rnd()-.5)*12,vx:(rnd()-.5)*30,vy:-12+rnd()*8,a:0,ph:rnd()*9});}
  for(let k=rings.length-1;k>=0;k--)if(tN-rings[k].t>1.8)rings.splice(k,1);
 }
 function drawKelp(dt){
@@ -456,7 +457,7 @@ function updDeep(dt){
  if(A.cd<=0&&vis>.5){const mx=A.x+sg*cw*4,my=A.y+chH*.6;let eaten=false;
   for(const L of deep.lan){if(Math.hypot(L.x-mx,L.y-my)<18){L.x=W*(.7+rnd()*.25);L.y=H*.95;L.vx=L.vy=0;eaten=true;break;}}
   if(!eaten)for(const sc of schools)for(const f of sc.fish){if(Math.hypot(f.x-mx,f.y-my)<18){f.x=rnd()<.5?-30:W+30;f.y=H*(.15+rnd()*.3);eaten=true;break;}}
-  if(eaten){A.open=.45;A.cd=4+rnd()*3;for(let k=0;k<6;k++)spark(mx,my,'*',hsl(55,100,80),.4,(rnd()-.5)*60,(rnd()-.5)*40,true);bub(mx,my-6,.4);bub(mx+4,my-8,.2);}
+  if(eaten){SND('gulp');A.open=.45;A.cd=4+rnd()*3;for(let k=0;k<6;k++)spark(mx,my,'*',hsl(55,100,80),.4,(rnd()-.5)*60,(rnd()-.5)*40,true);bub(mx,my-6,.4);bub(mx+4,my-8,.2);}
  }
  if(vis>.02){const op=A.open>0;
   const Ls=["        *   ","       /    ","  _.--'--.  ",op?"><(###@  <  ":"><(###@  >) ",op?"  `-^^^-'   ":"  `-vvv-'   "];
@@ -519,7 +520,7 @@ function updDeep(dt){
    sprite(Vs.x,Vs.y,L,true,ch=>ch==='o'?hsl(205,100,V_(72+Vs.fx*20,vis)):(ch==='^'||ch==='-')?hsl(350,50,V_(40,vis)):hsl(350,58,V_(ck?40:30+Vs.fx*25,vis)),true);}}
 }
 function deepTap(x,y){
- if(!deep||MIGv<.15)return;
+ if(!deep||MIGv<.15)return;SND('chime',{f:[660,784,880,1047,1175][rnd()*5|0],min:120});
  const A=deep.ang;if(Math.hypot(A.x-x,A.y-y)<70){A.fx=1;A.vx+=(A.x-x)*2;A.vy+=(A.y-y)*2;}
  for(const f of deep.lan){const d=Math.hypot(f.x-x,f.y-y);if(d<120){f.fx=1;f.vx+=(f.x-x)/(d+1)*200;f.vy+=(f.y-y)/(d+1)*200;}}
  for(const q of deep.sq){const d=Math.hypot(q.x-x,q.y-y);if(d<150){q.fx=1;q.vx+=(q.x-x)/(d+1)*160;q.vy+=(q.y-y)/(d+1)*160-40;q.ph=Math.floor(q.ph);}}
@@ -544,7 +545,7 @@ function frame(now){
  if(flee.on&&tN>flee.until)flee.on=false;fSpd*=Math.exp(-dt*6);
  if(tN>nextSweep&&!brush){nextSweep=tN+9+rnd()*8;const dir=rnd()<.5?1:-1;brush={x:dir>0?-60:W+60,y:H*(.15+rnd()*.35),v:W*.28*dir};}
  if(brush){brush.x+=brush.v*dt;deposit(brush.x,brush.y,brush.v*.9,0,0,70);if(brush.x<-80||brush.x>W+80)brush=null;}
- updField(dt);
+ updField(dt);if((fid&31)===0)SNDSET('night',NT);
  if(down&&!feeding&&moved<14&&tN-downT>.45){feeding=true;if(!touched2){touched2=true;}}
  {const p=((tN+12)/120)%1;NT=p<.45?0:p<.55?(p-.45)/.1:p<.88?1:1-(p-.88)/.12;NT=NT*NT*(3-2*NT);}
  drawFar(dt);updDrift(dt);updFood(dt);drawKelp(dt);updCrab(dt);updOct(dt);updCreatures(dt);updShark(dt);updDeep(dt);updSparks(dt);
@@ -600,6 +601,7 @@ function frame(now){
 let down=false,touched=false,px0=0,py0=0,pt0=0,svx=0,svy=0,lastB=0;
 let touched2=false;
 function tap(x,y){
+ SND(solid(x,y)?'tick':'plop');setTimeout(()=>SND('bubble',{p:1.2}),90);setTimeout(()=>SND('bubble',{p:1.5}),180);
  deposit(x,y,0,0,1.0,36);
  flee.on=true;flee.x=x;flee.y=y;flee.until=tN+.5;
  if(!solid(x,y)){rings.push({x,y,t:tN});if(rings.length>6)rings.shift();}
@@ -613,6 +615,7 @@ function tap(x,y){
  if(!touched){touched=true;hint.style.opacity=0;}
 }
 function drag(x,y,ts){
+ if(fSpd>120)SND('whoosh',{v:fSpd/700,min:260});
  const dtm=Math.max(8,ts-pt0)/1000,vx=(x-px0)/dtm,vy=(y-py0)/dtm;
  svx=svx*.6+vx*.4;svy=svy*.6+vy*.4;fSpd=Math.max(fSpd*.7,Math.hypot(svx,svy));
  moved+=Math.hypot(x-px0,y-py0);

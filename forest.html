@@ -157,6 +157,7 @@ function windAt(c,r){const s=Math.sin(tN*1.4-c*.12-r*.045+Math.sin(r*.19+tN*.2)*
 
 function put(x,y,ch,col){const c=Math.round(x),r=Math.round(y);if(c<0||r<0||c>=cols||r>=rows)return;const i=r*cols+c;OVk[i]=ch;OVc[i]=col;OVs[i]=fid;}
 const rnd=Math.random;
+const SND=(n,o)=>{try{if(parent!==window&&parent.SFX)parent.SFX.play(n,o);}catch(e){}},SNDSET=(k,v)=>{try{if(parent!==window&&parent.SFX)parent.SFX.set(k,v);}catch(e){}};
 function bird(c,r,cruise){parts.push({k:0,x:c,y:r,vx:cruise?9+rnd()*3:(rnd()-.5)*18+(c<cols/2?-4:4),vy:cruise?-.3:-(7+rnd()*8),a:0,ph:rnd()*4,cr:cruise,life:cruise?30:12});}
 function bfly(c,r){parts.push({k:1,x:c,y:r,a:0,ph:rnd()*6,life:7+rnd()*5,hue:[330,48,22,285][rnd()*4|0]});}
 function leaf(c,r,h,l){if(parts.length>280)return;parts.push({k:2,x:c,y:r,vx:(rnd()-.3)*6,vy:1+rnd()*2,a:0,ph:rnd()*6,life:2.5+rnd()*2.5,hue:h,l:l||48});}
@@ -295,26 +296,28 @@ function tap(px,py){
  const i=cellOf(px,py);if(i<0)return;const c=px/cw,r=py/chH,ty=T[i],isLeaf=CV[i]>=0;
  if(rips.length>12)rips.shift();
  if(isLeaf||ty===TRUNK){
+  SND('flutter');setTimeout(()=>SND('chirpBird'),150);
   deposit(px,py,0,0,.8);
   const m=3+(rnd()*4|0);for(let k=0;k<m;k++)bird(c+(rnd()-.5)*7,r+(rnd()-.5)*3);
   for(let k=0;k<5;k++)leaf(c+(rnd()-.5)*6,r+(rnd()-.5)*3,95+rnd()*20,44);
- }else if(ty===WATER||ty===PAD||ty===PADF){rips.push({c,r,t:tN,sp:11,a:.85});}
- else if(ty===BANK){rips.push({c,r,t:tN,sp:10,a:.45});deposit(px,py,0,0,.6);}
+ }else if(ty===WATER||ty===PAD||ty===PADF){rips.push({c,r,t:tN,sp:11,a:.85});SND('plop');}
+ else if(ty===BANK){rips.push({c,r,t:tN,sp:10,a:.45});deposit(px,py,0,0,.6);SND('drip');}
  else{
   deposit(px,py,0,0,1.1);
   if((ty===GRASS||ty===FLOWER)&&rnd()<.5)bfly(c,r);
-  if(ty===SKY&&rnd()<.6){bird(c,r);bird(c+2,r+1);}
+  SND('wind',{v:.4});if(ty===SKY&&rnd()<.6){bird(c,r);bird(c+2,r+1);SND('flutter');}
  }
  if(!touched){touched=true;hint.style.opacity=0;}
 }
 function drag(x,y,ts){
+ {const sp=Math.hypot(svx,svy);if(sp>.25)SND('wind',{v:sp*.6,min:300});}
  const dtm=Math.max(8,ts-pt0)/1000,vx=(x-px0)/W/dtm,vy=(y-py0)/W/dtm;
  svx=svx*.6+vx*.4;svy=svy*.6+vy*.4;
  const dist=Math.hypot(x-px0,y-py0),k=Math.max(1,Math.ceil(dist/(cw*3)));
  for(let s=1;s<=k;s++){const f=s/k;deposit(px0+(x-px0)*f,py0+(y-py0)*f,svx,svy,0);}
  const i=cellOf(x,y);
  if(i>=0){const ty=T[i];
-  if((ty===WATER||ty===PAD||ty===PADF)&&tN-lastRip>.13){lastRip=tN;if(rips.length>12)rips.shift();rips.push({c:x/cw,r:y/chH,t:tN,sp:10,a:.32+Math.min(.3,Math.hypot(svx,svy)*.15)});}
+  if((ty===WATER||ty===PAD||ty===PADF)&&tN-lastRip>.13){lastRip=tN;SND('drip',{min:200});if(rips.length>12)rips.shift();rips.push({c:x/cw,r:y/chH,t:tN,sp:10,a:.32+Math.min(.3,Math.hypot(svx,svy)*.15)});}
   if(CV[i]>=0&&rnd()<.2)leaf(x/cw,y/chH,95+rnd()*20,44);
  }
  px0=x;py0=y;pt0=ts;
