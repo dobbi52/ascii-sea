@@ -42,6 +42,8 @@ window.SFX=(()=>{
   rumble:()=>nz('lowpass',110,.7,.9,.3,0,0,brownBuf),
   egg:()=>osc('sine',620,980,.06,.08),
   glitch:()=>{for(let k=0;k<7;k++)osc('square',200+R()*1800,0,.025,.04,k*.045);},
+  croak:()=>{for(let k=0;k<2;k++){const t=ac.currentTime+k*.16,o=ac.createOscillator(),lp=ac.createBiquadFilter(),g=ac.createGain();o.type='sawtooth';o.frequency.setValueAtTime(140,t);o.frequency.linearRampToValueAtTime(95,t+.12);lp.type='bandpass';lp.frequency.value=600;lp.Q.value=3;env(g,t,.01,.22,.12);o.connect(lp).connect(g).connect(master);o.start(t);o.stop(t+.2);}},
+  quack:()=>{const t=ac.currentTime,o=ac.createOscillator(),bp=ac.createBiquadFilter(),g=ac.createGain();o.type='square';o.frequency.setValueAtTime(420,t);o.frequency.exponentialRampToValueAtTime(300,t+.15);bp.type='bandpass';bp.frequency.value=1200;bp.Q.value=4;env(g,t,.01,.12,.16);o.connect(bp).connect(g).connect(master);o.start(t);o.stop(t+.22);},
   chirpBird:()=>{for(let k=0;k<3;k++)osc('sine',2600,3900,.05,.07,k*.09);},
  };
  function play(name,o){if(!on||!ac||!S[name])return;const now=performance.now(),min=(o&&o.min)||40;if(last[name]&&now-last[name]<min)return;last[name]=now;try{S[name](o);}catch(e){}}
@@ -52,8 +54,9 @@ window.SFX=(()=>{
  function startAmb(sc){if(!on||!ac)return;stopAmb();
   if(sc==='sea'){amb.a=loopNoise(brownBuf,'lowpass',240,.7,.32);
    ambT=setInterval(()=>{if(R()<.35)S.bubble({p:.6+R()*.8});if(lvl.night>.5&&R()<.18)S.chime({f:[660,880,990,1320][R()*4|0]});},700);}
-  else if(sc==='forest'){amb.a=loopNoise(noiseBuf,'bandpass',650,.5,.05);
-   ambT=setInterval(()=>{amb.a.fl.frequency.linearRampToValueAtTime(450+R()*500,ac.currentTime+.8);if(R()<.3)S.chirp();},900);}
+  else if(sc==='forest'){amb.a=loopNoise(noiseBuf,'bandpass',650,.5,.05);amb.r=loopNoise(noiseBuf,'highpass',1800,.5,0);
+   ambT=setInterval(()=>{amb.a.fl.frequency.linearRampToValueAtTime(450+R()*500,ac.currentTime+.8);lvlTo(amb.r,lvl.rain*.1);
+    if(lvl.night<.5){if(R()<.3)S.chirp();}else{if(R()<.6)S.crickets();if(R()<.12)S.croak();}},900);}
   else if(sc==='ant'){amb.a=loopNoise(brownBuf,'lowpass',130,.7,.28);amb.r=loopNoise(noiseBuf,'highpass',1600,.5,0);
    ambT=setInterval(()=>{lvlTo(amb.r,lvl.rain*.12);if(R()<.35)S.scratch();if(lvl.night>.5&&R()<.4)S.crickets();},500);}
  }
