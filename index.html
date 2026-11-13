@@ -151,5 +151,6 @@ function mini(t){drawSnd(t);btns.forEach(b=>{const g=b.getContext('2d'),s=b.data
 go(pick(),true);
 })();
 </script>
+<script>/* 모바일 터치 */document.addEventListener("touchmove",e=>{if(e.cancelable)e.preventDefault();},{passive:false});document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});</script>
 </body>
 </html>

@@ -450,5 +450,6 @@ requestAnimationFrame(frame);
 window._fw=t=>{weather={type:t,t:0,dur:t==='rain'?18:28};};
 })();
 </script>
+<script>/* 모바일 터치: 브라우저가 스크롤·확대 동작으로 가로채지 않게 */(()=>{const s=e=>{if(e.cancelable)e.preventDefault();};for(const t of ["touchstart","touchmove"])document.addEventListener(t,s,{passive:false});document.addEventListener("gesturestart",s,{passive:false});document.addEventListener("dblclick",s,{passive:false});})();</script>
 </body>
 </html>
