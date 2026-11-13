@@ -137,10 +137,12 @@ function frame(now){
  for(const g of falling)str(Math.round(g.x)-3,Math.round(g.y),'[=====]',hsl(25,45,40));
  {const M=mm,T=mmTip(),st=Math.max(Math.abs(T.sx-T.x),Math.abs(T.sy-T.y)*asp)*1.1|0;
   for(let q=2;q<=st;q++){const x=lerp(T.x,T.sx,q/st),y=lerp(T.y,T.sy,q/st);putN(x,y,'\\',hsl(28,45,30+glowK*12));}
-  if(M.state==='on'){const k=M.t,col=M.burn?hsl(20,20,14):k<.35?hsl(40,20,92):k<.7?hsl(40,70,70-((k-.35)*40)):k<1.05?hsl(28,70,48-(k-.7)*40):hsl(20,40,24);
-   str(Math.round(T.x)-1,Math.round(T.y),'[]',col);str(Math.round(T.x)-1,Math.round(T.y)-1,'__',col);
-   if(M.burn){const f=Math.sin(tN*14)>0;putN(T.x,T.y-2,f?'^':'*',hsl(f?30:48,100,64));putN(T.x-1,T.y-2,f?'*':'^',hsl(20,100,56));}}
-  else if(M.k>.3){str(Math.round(T.sx)-1,Math.round(T.sy)-1,'[]',hsl(40,20,90));}}
+  const big=cols>=120,art=big?[' .------. ','|########|','|########|','|########|'," '------' "]:['.--.','|##|',"'--'"],aw=art[0].length,ah=art.length;
+  const drawMM=(cx,cy,col,core)=>{const x0=Math.round(cx-aw/2),y0=Math.round(cy-ah/2);art.forEach((ln,j)=>str(x0,y0+j,ln,ch=>ch==='#'?core:col));};
+  if(M.state==='on'){const k=M.t,col=M.burn?hsl(20,20,32):k<.35?hsl(40,20,92):k<.7?hsl(40,70,70-((k-.35)*40)):k<1.05?hsl(28,70,48-(k-.7)*40):hsl(20,40,24);
+   const core=M.burn?hsl(10,70,(Math.sin(tN*9)>0?30:22)):k<.35?hsl(40,15,80):hsl(42,55,cl(76-k*30,30,80));drawMM(T.x,T.y,col,core);
+   if(M.burn){const f=Math.sin(tN*14)>0,top=Math.round(T.y-ah/2)-1;for(let q=0;q<(big?4:2);q++){const fx=Math.round(T.x-aw/2+1+q*(big?2.2:1.5)),a=f!==(q%2===1);putN(fx,top,a?'^':'*',hsl(a?30:48,100,64));if(big)putN(fx,top-1,a?"'":'^',hsl(20,100,56));}}}
+  else if(M.k>.3)drawMM(T.sx,T.sy-ah/2,hsl(40,20,90),hsl(40,15,80));}
  if(owl){const o=owl,b=o.blink>0,fade=Math.min(1,o.a,o.life-o.a);if(fade>.2){const c=hsl(30,25,24+glowK*14),e=hsl(50,90,b?20:62);str(o.x,o.y-1,',_,',c);str(o.x-1,o.y,'(',c);putN(o.x,o.y,b?'-':'O',e);putN(o.x+1,o.y,',',c);putN(o.x+2,o.y,b?'-':'O',e);putN(o.x+3,o.y,')',c);str(o.x-1,o.y+1,'(   )',c);str(o.x,o.y+2,'" "',hsl(40,50,40));}}
  for(const f of flies){const on=Math.sin(tN*2.2+f.ph)>.2;if(on)putN(f.x,f.y,'*',hsl(70,100,62));}
  for(const z of texts)str(Math.round(z.x),Math.round(z.y),z.s,hsl(z.h,90,75));
@@ -179,7 +181,7 @@ function frame(now){
 // ---------- 터치 ----------
 let held=false,touched=false,px0=0,py0=0,downT=0,moved=false,lp=false,onProp=false,lastSw=0;
 function tap(x,y){const c=x/cw,r=y/chH,T=mmTip();
- if(mm.state==='on'&&Math.abs(c-T.x)<3&&Math.abs(r-T.y)<2.5){const k=mm.t;
+ if(mm.state==='on'&&Math.abs(c-T.x)<(cols>=120?7:3.5)&&Math.abs(r-T.y)<(cols>=120?4:2.5)){const k=mm.t;
   if(mm.burn){texts.push({x:T.x-1,y:T.y-2,s:'puff',h:0,a:0});SND('whoosh',{v:.3});for(let q=0;q<6;q++)smoke.push({x:T.x+(rnd()-.5)*2,y:T.y-1,a:0,life:2});}
   else if(k<.3){texts.push({x:T.x-2,y:T.y-2,s:'raw..',h:200,a:0});SND('tick');return true;}
   else{texts.push({x:T.x-2,y:T.y-2,s:k<1?'yum!':'crunch',h:k<1?45:20,a:0});SND('gulp');setTimeout(()=>SND('gulp'),150);}
