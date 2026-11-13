@@ -54,6 +54,7 @@ window.SFX=(()=>{
   laser:()=>{osc('sawtooth',1800,220,.6,.05);osc('sine',900,120,.6,.08);},
   horn:()=>{osc('square',440,0,.25,.06);osc('square',554,0,.25,.05);},
   siren:()=>{const t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type='triangle';for(let k=0;k<8;k++){o.frequency.setValueAtTime(k%2?660:880,t+k*.45);}g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.06,t+.8);g.gain.linearRampToValueAtTime(.0001,t+3.6);o.connect(g).connect(master);o.start(t);o.stop(t+3.7);},
+  train:()=>{for(let k=0;k<16;k++){nz('bandpass',300+R()*80,2,.06,.18,k*.19);nz('bandpass',300+R()*80,2,.06,.14,k*.19+.08);}nz('lowpass',150,.7,3,.18,0,0,brownBuf);},
   chirpBird:()=>{for(let k=0;k<3;k++)osc('sine',2600,3900,.05,.07,k*.09);},
  };
  function play(name,o){if(!on||!ac||!S[name])return;const now=performance.now(),min=(o&&o.min)||40;if(last[name]&&now-last[name]<min)return;last[name]=now;try{S[name](o);}catch(e){}}
