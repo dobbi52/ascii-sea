@@ -18,7 +18,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 <canvas id="c"></canvas>
 <canvas id="g"></canvas>
 <div id="rot">[ ↻ ] 가로로 돌리면 더 넓게 보여요</div>
-<div id="hint">톡 · 쓱 · 꾸욱<small>빌딩 · 하늘 · 강 · 꾹 눌러 레이저</small></div>
+<div id="hint">톡 · 쓱 · 꾸욱<small>빌딩 · 하늘 · 도로 · 꾹 눌러 레이저</small></div>
 <script>
 (()=>{
 const cv=document.getElementById('c'),ctx=cv.getContext('2d',{alpha:false});
@@ -39,26 +39,28 @@ let tN=0,last=0,fid=0,NT=1,DUSK=0,DAWN=0,litR=.5,wind=0,windT=0;
 try{const m=location.hash.match(/^#t(\d+)$/);if(m)tN=+m[1];}catch(e){}
 
 // ---------- city generation ----------
-const SKY=0,BACK=1,FRONT=2,HILL=3,TOWER=4,BRIDGE=5,RIVER=6;
+const SKY=0,BACK=1,FRONT=2,HILL=3,TOWER=4,BRIDGE=5,RIVER=6,ROAD=7,WALK=8;
+let RD0=0;
 let blds=[],backs=[],towerC=0,towerTop=0,hillTop=0,marquee=null,roofSigns=[];
 function build(){
  n=cols*rows;T=new Uint8Array(n);BID=new Int16Array(n).fill(-1);OVk=new Array(n);OVc=new Array(n);OVs=new Int32Array(n);OVb=new Int16Array(n).fill(-1);HL=new Int32Array(n);
- const land=W>H;RV=Math.round(rows*(land?.66:.68));SKY0=Math.round(rows*(land?.08:.14));
+ const land=W>H;RV=Math.round(rows*(land?.7:.7));RD0=RV-5;SKY0=Math.round(rows*(land?.08:.14));
  // back layer
- backs=[];let x=0;while(x<cols){const w=3+(hash(x,1)*6|0),t=Math.round(lerp(SKY0+rows*.12,RV-rows*.12,hash(x,2)));backs.push({x,w,t});x+=w;}
+ backs=[];let x=0;while(x<cols){const w=3+(hash(x,1)*6|0),t=Math.round(lerp(SKY0+rows*.12,RD0-rows*.1,hash(x,2)))+5;backs.push({x,w,t});x+=w;}
  // hill + tower
- towerC=Math.round(cols*(land?.72:.7));hillTop=Math.round(RV-rows*(land?.22:.16));towerTop=Math.round(SKY0+rows*.02);
+ towerC=Math.round(cols*(land?.72:.7));hillTop=Math.round(RD0-rows*(land?.12:.12));towerTop=Math.round(SKY0+rows*.02);
  // front layer
  blds=[];x=-1;let k=0;while(x<cols){const w=Math.round((land?6:5)+hash(x,3)*(land?12:7));const hh=hash(x,4);
-  const t=Math.round(lerp(SKY0+rows*.1,RV-rows*.08,Math.pow(hh,.8)));
-  const near=Math.abs(x+w/2-towerC)<6;const top=near?Math.max(t,RV-rows*.12):t;
+  const t=Math.round(lerp(SKY0+rows*.1,RD0-rows*.06,Math.pow(hh,.8)));
+  const near=Math.abs(x+w/2-towerC)<6;const top=near?Math.max(t,RD0-rows*.1):t;
   const shape=['flat','flat','step','spire','dome','step'][(hash(x,5)*6)|0];
   blds.push({id:k++,x,w,t:Math.round(top),shape,warm:hash(x,9)<.6,wave:null,av:hash(x,6)<.6});x+=w+(hash(x,7)<.25?1:0);}
  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const i=r*cols+c;
   if(r>=RV){T[i]=r===RV?BRIDGE:RIVER;continue;}
+  if(r>=RD0){T[i]=r===RD0?WALK:ROAD;continue;}
   let t=SKY;
-  for(const b of backs)if(c>=b.x&&c<b.x+b.w&&r>=b.t){t=BACK;break;}
-  const hy=hillTop+Math.pow((c-towerC)/(cols*.18),2)*rows*.12;if(r>=hy)t=HILL;
+  for(const b of backs)if(c>=b.x&&c<b.x+b.w&&r>=b.t-5){t=BACK;break;}
+  const hy=hillTop+Math.pow((c-towerC)/(cols*(land?.08:.16)),2)*rows*.12;if(r>=hy)t=HILL;
   if(Math.abs(c-towerC)<=1&&r>=towerTop&&r<hillTop)t=TOWER;
   for(const b of blds){if(c<b.x||c>=b.x+b.w)continue;let top=b.t;
    if(b.shape==='step'&&(c<b.x+2||c>=b.x+b.w-2))top=b.t+Math.max(3,Math.round((RV-b.t)*.2));
@@ -73,7 +75,7 @@ function build(){
  [['dobbi.lab',320],['HOTEL',195],['치킨',45],['CAFE',25]].forEach(([txt,h],q)=>{const b=blds.filter(b=>!used.has(b.id)&&b.shape!=='spire'&&b.w>=txt.length+2&&b.x>=0&&b.x+b.w<=cols).sort((a,c)=>hash(a.id,q)-hash(c.id,q))[0];if(b){used.add(b.id);roofSigns.push({b,txt,h,off:0,zap:0});}});
  sil=document.createElement('canvas');sil.width=Math.ceil(W*dpr);sil.height=Math.ceil(H*dpr);const sg=sil.getContext('2d');sg.setTransform(dpr,0,0,dpr,0,0);
  const fillT=(tt,col)=>{sg.fillStyle=col;for(let r=0;r<rows;r++){let run=-1;for(let c=0;c<=cols;c++){const on=c<cols&&T[r*cols+c]===tt;if(on&&run<0)run=c;if(!on&&run>=0){sg.fillRect(run*cw,r*chH,(c-run)*cw+.5,chH+.5);run=-1;}}}};
- fillT(BACK,'#1c1636');fillT(HILL,'#0f1a1c');fillT(TOWER,'#0c0b18');fillT(FRONT,'#09081a');
+ fillT(ROAD,'#0c0b15');fillT(WALK,'#15131f');fillT(BACK,'#1c1636');fillT(HILL,'#0f1a1c');fillT(TOWER,'#0c0b18');fillT(FRONT,'#09081a');
  // lit edge on building tops/sides
  sg.fillStyle='rgba(150,140,220,.18)';for(const b of blds){if(b.shape==='flat'||b.shape==='dome')sg.fillRect(b.x*cw,b.t*chH,b.w*cw,1.5);}
  initLife();
@@ -82,7 +84,7 @@ let sil=null;
 
 // ---------- life ----------
 let cars=[],boat=null,nextBoat=8,planes=[],nextPlane=5,fw=[],nextFw=20,lasers=[],rings=[],clouds=[];
-function initLife(){cars=[];for(let k=0;k<22;k++)cars.push({x:rnd()*cols,d:k%2?1:-1,v:5+rnd()*5});boat=null;nextBoat=tN+8;planes=[];fw=[];lasers=[];rings=[];
+function initLife(){veh=[];for(let k=0;k<12;k++)spawnVeh(rnd()*cols);boat=null;nextBoat=tN+8;planes=[];fw=[];lasers=[];rings=[];
  clouds=[];for(let k=0;k<5;k++)clouds.push({x:rnd()*cols,y:SKY0*.4+rnd()*rows*.2,w:6+rnd()*12,s:.3+rnd()*.5});}
 function putN(c,r,ch,col,bright){c=Math.round(c);r=Math.round(r);if(c<0||r<0||c>=cols||r>=rows)return;const i=r*cols+c;OVk[i]=ch;OVc[i]=col;OVs[i]=fid;OVb[i]=bright===undefined?-1:bright;}
 function putH(c,r,ch,col,bright){c=Math.round(c);r=Math.round(r);if(c<0||r<0||c>=cols||r>=rows)return;putN(c,r,ch,col,bright);const i=r*cols+c;if(c>0)HL[i-1]=fid;if(c<cols-1)HL[i+1]=fid;}
@@ -93,8 +95,7 @@ function litWin(c,r,b){ // window lit?
 function burst(x,y,h){const n=40+(rnd()*20|0),hue2=(h+40+rnd()*80)%360;for(let k=0;k<n;k++){const a=k/n*6.28+rnd()*.2,v=8+rnd()*10;fw.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v/asp,life:1.4+rnd()*.8,a:0,h:rnd()<.5?h:hue2,k:'p'});}SND('boom');setTimeout(()=>SND('crackle'),250);}
 function launch(c,tr){const h=(rnd()*360)|0;fw.push({x:c,y:RV-1,vx:(rnd()-.5)*2,vy:-(RV-tr)/1.1,life:1.1,a:0,h,k:'r'});SND('whoosh',{v:.2});}
 function updLife(dt){
- // cars on bridge
- for(const C of cars){C.x+=C.d*C.v*dt;if(C.x>cols+2)C.x=-2;if(C.x<-2)C.x=cols+2;putN(C.x,RV-1,C.d>0?'>':'<',C.d>0?hsl(52,100,82):hsl(0,95,58),C.d>0?52:0);}
+ updRoad(dt);
  // boat
  if(!boat&&tN>nextBoat){const d=rnd()<.5;boat={x:d?-14:cols+14,d:d?1:-1,r:RV+Math.round((rows-RV)*.45)};}
  if(boat){boat.x+=boat.d*2.2*dt;const L=boat.d>0?["  _|_|_   ","[::::::]> "]:["   _|_|_  "," <[::::::]"],c0=Math.round(boat.x)-5;
@@ -129,6 +130,48 @@ function updLife(dt){
   for(let q=0;q<w;q++){const ch=txt[(off+q)%txt.length];const c=b.x+1+q;putH(c,M.r,ch===' '?'.':ch,ch===' '?hsl(60,40,25):hsl(55+(q*7)%60,100,60),55);}
   for(let q=0;q<w;q++){putN(b.x+1+q,M.r-1,'=',hsl(220,15,35));putN(b.x+1+q,M.r+1,'=',hsl(220,15,35));}}
  for(let k=rings.length-1;k>=0;k--)if(tN-rings[k].t>1.6)rings.splice(k,1);
+}
+
+
+// ---------- road ----------
+let veh=[],light={st:'g',t:10},amb=null,nextAmb=40,jam=0;
+const VT={car:{w:3,s:['[','=',']'],h:[210,0,140,30,270,0],v:[9,13]},taxi:{w:3,s:['[','T',']'],h:[50],v:[10,14]},bus:{w:8,s:['[','o',' ','o',' ','o',' ',']'],h:[150],v:[6,8]},truck:{w:6,s:['[','#','#','#',']','='],h:[20],v:[6,9]}};
+function spawnVeh(x0){const deep=NT>.85&&!(DAWN||DUSK)?.5:1;const lane=rnd()<.5?1:3,d=lane===1?1:-1,k=rnd()<.6?'car':rnd()<.4?'taxi':rnd()<.5?'bus':'truck',t=VT[k];
+ const v=t.v[0]+rnd()*(t.v[1]-t.v[0]);veh.push({k,lane,d,x:x0!==undefined?x0:(d>0?-t.w-2:cols+2),v,cur:v,h:t.h[(rnd()*t.h.length)|0],off:0,honk:0});}
+function stopX(d){const lc=Math.round(cols*.5);return d>0?lc-2:lc+2;}
+function updRoad(dt){
+ light.t-=dt;if(light.t<0){light.st=light.st==='g'?'y':light.st==='y'?'r':'g';light.t=light.st==='g'?10:light.st==='y'?2:6;}
+ jam=Math.max(0,jam-dt);
+ if(rnd()<dt*(NT>.85?.5:1.1)*(jam>0?3:1)&&veh.length<26)spawnVeh();
+ if(!amb&&tN>nextAmb){const d=rnd()<.5?1:-1;amb={lane:d>0?1:3,d,x:d>0?-6:cols+6,v:22};nextAmb=tN+60+rnd()*40;SND('siren');}
+ for(const L of [1,3]){const list=veh.filter(v=>v.lane===L).sort((a,b)=>L===1?b.x-a.x:a.x-b.x);
+  for(let k=0;k<list.length;k++){const V=list[k],t=VT[V.k],ahead=k>0?list[k-1]:null;let want=V.v;
+   if(ahead){const gap=V.d>0?ahead.x-(V.x+t.w):V.x-(ahead.x+VT[ahead.k].w);if(gap<2)want=0;else if(gap<6)want=Math.min(want,ahead.cur);}
+   const front=V.d>0?V.x+t.w:V.x,sx=stopX(V.d);
+   if((light.st!=='g'||jam>0)&&(V.d>0?front<=sx&&front>sx-6:front>=sx&&front<sx+6))want=0;
+   if(V.honk>0){V.honk-=dt;want=0;}
+   V.cur+=(want-V.cur)*dt*(want<V.cur?4:1.5);V.x+=V.d*V.cur*dt;
+   // give way to ambulance
+   const yield_=amb&&amb.lane===L&&(amb.d>0?V.x>amb.x&&V.x-amb.x<24:V.x<amb.x&&amb.x-V.x<24);V.off+=((yield_?1:0)-V.off)*dt*4;}}
+ for(let k=veh.length-1;k>=0;k--){const V=veh[k];if(V.x<-12||V.x>cols+12)veh.splice(k,1);}
+ // lamps (lights on road)
+ for(let c=4;c<cols;c+=12){putN(c,RD0-1,'|',hsl(220,8,40));putN(c,RD0-2,'*',hsl(38,100,72),38);
+  for(let r=RD0+1;r<RV;r++)for(let q=-2;q<=2;q++)if(hash(c+q,r+((tN*2)|0))<.35)putN(c+q,r,'.',hsl(35,80,38),35);}
+ // traffic light
+ {const lc=Math.round(cols*.5);putH(lc,RD0-1,'|',hsl(220,8,45));putH(lc,RD0-3,light.st==='r'?'o':'.',light.st==='r'?hsl(0,95,60):hsl(0,30,25),light.st==='r'?0:-1);
+  putH(lc,RD0-2,light.st==='g'?'o':light.st==='y'?'o':'.',light.st==='g'?hsl(140,90,55):light.st==='y'?hsl(45,95,60):hsl(140,30,22),light.st==='g'?140:light.st==='y'?45:-1);
+  for(let r=RD0+1;r<RV;r+=2)putN(stopX(1)+1,r,'|',hsl(0,0,55));}
+ // draw vehicles
+ for(const V of veh){const t=VT[V.k],row=RD0+V.lane-Math.round(V.off)*(V.lane===1?1:-1),x0=Math.round(V.x),body=V.k==='taxi'?hsl(48,90,55):V.k==='bus'?hsl(160,50,40):V.k==='truck'?hsl(20,30,45):hsl(V.h,50,48);
+  t.s.forEach((ch,q)=>{const xx=V.d>0?x0+q:x0+t.w-1-q;const c2=V.d<0?({'[':']',']':'['})[ch]||ch:ch;
+   putH(xx,row,c2,ch==='o'&&V.k==='bus'?hsl(48,80,70):ch==='T'?hsl(0,0,15):body,ch==='o'?48:-1);});
+  const hx=V.d>0?x0+t.w:x0-1,tx=V.d>0?x0-1:x0+t.w;putN(hx,row,'*',hsl(55,100,86),55);putN(tx,row,'.',hsl(0,95,55),0);
+  for(let q=1;q<7;q++)if(rnd()<.5)putN(hx+V.d*q,row,'.',hsl(52,90,52+(7-q)*4),52);
+  if(V.honk>0)putN(hx,row-1,'!',hsl(50,95,70));}
+ if(amb){amb.x+=amb.d*amb.v*dt;const row=RD0+amb.lane,x0=Math.round(amb.x),s=amb.d>0?['[','+','-','-',']']:['[','-','-','+',']'],fl=((tN*8)|0)%2;
+  s.forEach((ch,q)=>putH(x0+q,row,ch,ch==='+'?hsl(0,90,55):hsl(0,0,90)));putH(x0+2,row-1,'*',fl?hsl(0,95,60):hsl(220,95,62),fl?0:220);
+  putN(amb.d>0?x0+5:x0-1,row,'*',hsl(55,100,86),55);
+  if(amb.x<-10||amb.x>cols+10)amb=null;}
 }
 
 // ---------- render ----------
@@ -168,9 +211,10 @@ function frame(now){
   if(OVs[i]===fid){if(OVk[i]!==' ')draw(OVk[i],OVc[i],c,r);continue;}
   if(HL[i]===fid)continue;
   const tt=T[i],rn=hash(c*7+3,r*13+5);
+  if((tt===SKY||tt===BACK)&&c<cols*.5){const span=cols*.48,yb=RD0-rows*.07-Math.sin(c/span*Math.PI)*rows*.06;if(Math.abs(r-yb)<.5){draw(((c+((tN*3)|0))%5)?'.':'*',hsl(45,70,55),c,r);continue;}if(Math.abs(r-(RD0-rows*.07))<.5){draw('-',hsl(230,15,35),c,r);continue;}}
   if(tt===SKY){if(NT>.4&&rn<.02){draw(rn<.005?'*':'.',hsl(55,30,50+30*Math.sin(tN*2+rn*900)),c,r);}
    else if(r===Math.round(SKY0*.6)&&c===Math.round(cols*.16)&&NT>.3)draw('(',hsl(220,40,92),c,r);continue;}
-  if(tt===BACK){const b=backs.find(b=>c>=b.x&&c<b.x+b.w);if(r===b.t){draw('_',hsl(250,20,26),c,r);continue;}
+  if(tt===BACK){const b=backs.find(b=>c>=b.x&&c<b.x+b.w);if(r===b.t-5){draw('_',hsl(250,20,26),c,r);continue;}
    if(hash(c*5,r*3)<.13*(.5+litR))draw('.',hsl(40,50,40),c,r);else if(rn<.25)draw(':',hsl(250,20,16),c,r);continue;}
   if(tt===HILL){draw(rn<.4?'^':rn<.7?'n':'.',hsl(150,25,14),c,r);continue;}
   if(tt===TOWER){const k=r-towerTop;
@@ -187,10 +231,10 @@ function frame(now){
    if(lw===2){draw('#',hsl(200,90,75),c,r);continue;}
    if(lw===1){draw(rn<.5?'#':'=',b.warm?hsl(42,80,58*(1-DAWN*.3)):hsl(185,55,54*(1-DAWN*.3)),c,r);continue;}
    if((c-b.x)%2===1&&(r-b.t)%2===1)draw(':',hsl(240,25,24),c,r);else if(rn<.15)draw('.',hsl(240,15,16),c,r);continue;}
-  if(tt===BRIDGE){const k=c%16;draw(k===0?'H':'=',hsl(220,12,45),c,r);
-   continue;}
+  if(tt===BRIDGE){draw(c%4?'=':'#',hsl(220,12,32),c,r);continue;}
+  if(tt===WALK){draw(rn<.5?'_':'.',hsl(230,10,30),c,r);continue;}
+  if(tt===ROAD){const lane=r-RD0;if(lane===2){if(((c+((tN*0)|0))%6)<3)draw('-',hsl(48,80,50),c,r);continue;}if(rn<.12)draw('.',hsl(230,10,18),c,r);continue;}
   // river
-  if(c%16===0&&r<RV+3){draw('|',hsl(220,12,32),c,r);continue;}
   const dr=r-RV,sr=Math.round(RV-dr*1.5-1),wob=Math.round(Math.sin(r*1.4+tN*2.2+c*.05)*(1+dr*.08)+wind*dr*.05);
   let rg=0;for(const g2 of rings){const a=tN-g2.t,R=a*8,d=Math.hypot(c-g2.c,(r-g2.r)*2.4);if(Math.abs(d-R)<.7)rg=Math.max(rg,1-a/1.6);}
   if(rg>0){draw(rg>.5?'o':'~',hsl(200,60,40+rg*40),c,r);continue;}
@@ -199,7 +243,6 @@ function frame(now){
   if(rn<.25+Math.abs(wind)*.1)draw(((c+r+(tN*2|0))%4)?'-':'~',hsl(225,30,14+(1-dr/(rows-RV))*6),c,r);
  }
  // bridge arch cables & deck lights
- for(let c=0;c<cols;c+=3){ctx.fillStyle=hsl((c*12+tN*40)%360,90,60);ctx.fillText('.',c*cw,(RV+.5)*chH);}
  gx.clearRect(0,0,gv.width,gv.height);gx.drawImage(cv,0,0,gv.width,gv.height);
  requestAnimationFrame(frame);
 }
@@ -209,10 +252,13 @@ let held=false,touched=false,px0=0,py0=0,downT=0,moved=false,lp=false,lx=0,lt=0;
 function tap(x,y){const c=Math.floor(x/cw),r=Math.floor(y/chH);if(c<0||c>=cols||r<0||r>=rows)return;const i=r*cols+c;
  for(const s of roofSigns){if(Math.abs(r-(s.b.t-1))<=1&&c>=s.b.x&&c<s.b.x+s.b.w){s.zap=.7;s.h=(s.h+60+rnd()*80)%360;SND('zap');return;}}
  if(T[i]===FRONT){const b=blds[BID[i]];b.wave={t:tN,c,r};SND('chime',{f:[523,659,784,988][(rnd()*4)|0],min:100});return;}
+ if(Math.abs(c-Math.round(cols*.5))<=1&&r>=RD0-4&&r<=RD0-1){light.st=light.st==='g'?'y':'g';light.t=light.st==='y'?2:10;SND('tick');return;}
+ if(T[i]===ROAD||T[i]===WALK){let best=null,bd=6;for(const V of veh){const d=Math.abs(V.x+VT[V.k].w/2-c)+Math.abs(RD0+V.lane-r);if(d<bd){bd=d;best=V;}}if(best){best.honk=.8;}SND('horn');return;}
  if(T[i]===RIVER||T[i]===BRIDGE){rings.push({c,r,t:tN});SND('plop');return;}
  if(T[i]===SKY||T[i]===BACK){launch(c,r);return;}
  SND('tick');}
-function longPress(x,y){const c=Math.floor(x/cw),r=Math.floor(y/chH);lasers.push({c,r:Math.min(r,RV-1),a:0,h:(rnd()*360)|0,ph:rnd()*6});if(lasers.length>3)lasers.shift();SND('laser');}
+function longPress(x,y){const c=Math.floor(x/cw),r=Math.floor(y/chH);
+ if(r>=RD0&&r<RV){jam=5;for(let k=0;k<8;k++)spawnVeh();SND('horn');setTimeout(()=>SND('horn'),300);return;}lasers.push({c,r:Math.min(r,RV-1),a:0,h:(rnd()*360)|0,ph:rnd()*6});if(lasers.length>3)lasers.shift();SND('laser');}
 addEventListener('pointerdown',e=>{held=true;moved=false;lp=false;px0=lx=e.clientX;py0=e.clientY;downT=tN;lt=e.timeStamp;tap(e.clientX,e.clientY);if(!touched){touched=true;hint.style.opacity=0;}});
 addEventListener('pointermove',e=>{if(!held)return;const x=e.clientX;if(!moved&&Math.hypot(x-px0,e.clientY-py0)>12)moved=true;
  if(moved){const dtm=Math.max(8,e.timeStamp-lt)/1000,vx=(x-lx)/W/dtm;windT=cl(windT+vx*.25,-3,3);if(Math.abs(vx)>.8)SND('wind',{v:Math.abs(vx)/3,min:300});}
