@@ -30,11 +30,11 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;back
 <body>
 <iframe id="f" title="글자 풍경"></iframe>
 <canvas id="fx"></canvas>
-<div id="sw"><div id="scenes"><div class="it" data-s="sea" style="--hi:#6fe0ff"><canvas data-s="sea" aria-label="바닷속"></canvas><span>바닷속</span></div><div class="it" data-s="forest" style="--hi:#9fe070"><canvas data-s="forest" aria-label="숲속 연못"></canvas><span>숲속 연못</span></div><div class="it" data-s="ant" style="--hi:#f0a060"><canvas data-s="ant" aria-label="개미굴"></canvas><span>개미굴</span></div></div><canvas id="snd" aria-label="소리 켜기/끄기"></canvas></div>
+<div id="sw"><div id="scenes"><div class="it" data-s="sea" style="--hi:#6fe0ff"><canvas data-s="sea" aria-label="바닷속"></canvas><span>바닷속</span></div><div class="it" data-s="forest" style="--hi:#9fe070"><canvas data-s="forest" aria-label="숲속 연못"></canvas><span>숲속 연못</span></div><div class="it" data-s="ant" style="--hi:#f0a060"><canvas data-s="ant" aria-label="개미굴"></canvas><span>개미굴</span></div><div class="it" data-s="neon" style="--hi:#ff5fd2"><canvas data-s="neon" aria-label="네온 골목"></canvas><span>네온 골목</span></div></div><canvas id="snd" aria-label="소리 켜기/끄기"></canvas></div>
 <script src="sfx.js"></script>
 <script>
 (()=>{
-const SC={sea:{src:'sea.html',hues:[185,200,45,320,24]},forest:{src:'forest.html',hues:[95,120,60,352,196]},ant:{src:'ant.html',hues:[24,12,40,95,30]}};
+const SC={sea:{src:'sea.html',hues:[185,200,45,320,24]},forest:{src:'forest.html',hues:[95,120,60,352,196]},ant:{src:'ant.html',hues:[24,12,40,95,30]},neon:{src:'neon.html',hues:[305,190,0,125,40]}};
 const f=document.getElementById('f'),fx=document.getElementById('fx'),c=fx.getContext('2d'),btns=[...document.querySelectorAll('#sw canvas[data-s]')];
 const GL='@#%&*+=~-:;.oO0/\\|<>';
 let cur=null,busy=false;
@@ -87,6 +87,7 @@ function mini(t){drawSnd(t);btns.forEach(b=>{const g=b.getContext('2d'),s=b.data
  const gr=g.createLinearGradient(0,0,0,34);
  if(s==='sea'){gr.addColorStop(0,'#0e5672');gr.addColorStop(1,'#04182a');}
  else if(s==='forest'){gr.addColorStop(0,'#2b4a22');gr.addColorStop(1,'#10200c');}
+ else if(s==='neon'){gr.addColorStop(0,'#14102a');gr.addColorStop(1,'#05040a');}
  else{gr.addColorStop(0,'#8fcbe8');gr.addColorStop(.3,'#8fcbe8');gr.addColorStop(.31,'#3a2414');gr.addColorStop(1,'#1a0e07');}
  g.fillStyle=gr;g.fillRect(0,0,52,34);g.font=MF;g.textBaseline='top';
  const P=(ch,c,r,col)=>{g.fillStyle=col;g.fillText(ch,1+c*5.4,1+r*10.6);};
@@ -100,6 +101,12 @@ function mini(t){drawSnd(t);btns.forEach(b=>{const g=b.getContext('2d'),s=b.data
   for(let c=0;c<10;c++){const tl=Math.sin(t*2.4-c*.6);P(tl>.35?'/':tl<-.35?'\\':'|',c,0,hs(100+c*4,55,55));}
   for(let c=0;c<10;c++){const tl=Math.sin(t*2.4-c*.6-1);P(c===3?'*':c===8?'@':(tl>.3?'/':'|'),c,1,c===3?hs(350,80,62):c===8?hs(50,90,62):hs(90,50,45));}
   for(let c=0;c<10;c++)P(c>1&&c<8?(((c+(t*2|0))%3)?'~':'-'):'.',c,2,c>1&&c<8?hs(196,70,62):hs(80,40,40));
+ }else if(s==='neon'){
+  for(let c=0;c<10;c++){const y=((t*6+c*1.7)%3);P('|',c,y-.5,'rgba(170,200,255,.35)');}
+  P('2',1,.2,((t*3)|0)%7?hs(320,100,65):hs(320,40,25));P('4',2,.2,hs(320,100,65));
+  P('#',7,.2,hs(190,100,60));P('#',8,.2,((t*2)|0)%5?hs(190,100,60):hs(190,40,25));
+  for(let c=0;c<10;c++)P(c<4?'~':c>6?'~':'.',c,2,c<4?hs(320,80,40):c>6?hs(190,80,40):hs(230,20,30));
+  const px=9-((t*1.4)%10);P('^',px|0,1.1,hs(50,90,60));
  }else{
   for(let c=0;c<10;c++)P(c===5?' ':Math.sin(t*2-c)>.3?'/':'|',c,-.05,hs(100,55,40));
   for(let c=0;c<10;c++){if(c>=1&&c<=8)continue;P('%',c,1,hs(26,40,30));}
