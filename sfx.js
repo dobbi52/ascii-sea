@@ -59,6 +59,9 @@ window.SFX=(()=>{
    bp.type='bandpass';bp.frequency.setValueAtTime(900,t);bp.frequency.linearRampToValueAtTime(1600,t+.18);bp.frequency.linearRampToValueAtTime(700,t+.5);bp.Q.value=3;env(g,t,.04,.13,.48);o.connect(bp).connect(g).connect(master);o.start(t);o.stop(t+.6);},
   hoot:()=>{for(let k=0;k<2;k++){const t=ac.currentTime+k*.42,o=ac.createOscillator(),g=ac.createGain(),lf=ac.createOscillator(),lg=ac.createGain();o.type='sine';o.frequency.setValueAtTime(k?360:390,t);o.frequency.linearRampToValueAtTime(k?330:370,t+.35);
    lf.frequency.value=7;lg.gain.value=6;lf.connect(lg).connect(o.frequency);env(g,t,.05,.16,.32);o.connect(g).connect(master);o.start(t);o.stop(t+.45);lf.start(t);lf.stop(t+.45);}},
+  whistle:()=>{const t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain(),lf=ac.createOscillator(),lg=ac.createGain();o.type='sine';o.frequency.setValueAtTime(1700,t);o.frequency.linearRampToValueAtTime(2100,t+.5);
+   lf.frequency.value=9;lg.gain.value=25;lf.connect(lg).connect(o.frequency);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.05,t+.3);g.gain.linearRampToValueAtTime(.05,t+1.3);g.gain.linearRampToValueAtTime(.0001,t+1.8);
+   o.connect(g).connect(master);o.start(t);o.stop(t+1.9);lf.start(t);lf.stop(t+1.9);nz('bandpass',2400,2,1.6,.02);},
   chirpBird:()=>{for(let k=0;k<3;k++)osc('sine',2600,3900,.05,.07,k*.09);},
  };
  function play(name,o){if(!on||!ac||!S[name])return;const now=performance.now(),min=(o&&o.min)||40;if(last[name]&&now-last[name]<min)return;last[name]=now;try{S[name](o);}catch(e){}}
