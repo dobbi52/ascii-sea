@@ -536,7 +536,7 @@ function resize(){
  W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);
  cv.width=W*dpr|0;cv.height=H*dpr|0;ctx.setTransform(1,0,0,1,0,0);ctx.font='bold 20px '+FONT;
  const k=ctx.measureText('M').width/20||.6;
- cw=Math.max(5.4,Math.min(9,W/70));fs=cw/k;chH=fs*1.1;cols=Math.ceil(W/cw);rows=Math.ceil(H/chH);asp=chH/cw;
+ cw=W>H&&H<600?Math.max(5.4,Math.min(7,W/150)):Math.max(5.4,Math.min(9,W/70));fs=cw/k;chH=fs*1.1;cols=Math.ceil(W/cw);rows=Math.ceil(H/chH);asp=chH/cw;
  fontStr='bold '+fs.toFixed(2)+'px '+FONT;gv.width=Math.ceil(W/4);gv.height=Math.ceil(H/4);vign=null;bgG=null;
  build();init();
 }
