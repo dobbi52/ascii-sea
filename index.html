@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>글자 풍경</title>
+<style>
+html,body{margin:0;height:100%;background:#020814;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:#020814}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+#sw{position:fixed;z-index:3;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));display:flex;gap:2px;padding:3px;border-radius:999px;background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#sw button{font:700 12px/1 "SF Mono",ui-monospace,Menlo,monospace;letter-spacing:.02em;color:rgba(255,255,255,.55);background:transparent;border:0;border-radius:999px;padding:7px 11px;cursor:pointer;transition:background .25s,color .25s}
+#sw button.on{color:#fff;background:rgba(255,255,255,.18)}
+#sw button[data-s="sea"].on{background:rgba(60,190,230,.35)}
+#sw button[data-s="forest"].on{background:rgba(120,200,70,.35)}
+</style>
+</head>
+<body>
+<iframe id="f" title="글자 풍경"></iframe>
+<canvas id="fx"></canvas>
+<div id="sw"><button data-s="sea">~ 바다</button><button data-s="forest">| 숲</button></div>
+<script>
+(()=>{
+const SC={sea:{src:'sea.html',hues:[185,200,45,320,24]},forest:{src:'forest.html',hues:[95,120,60,352,196]}};
+const f=document.getElementById('f'),fx=document.getElementById('fx'),c=fx.getContext('2d'),btns=[...document.querySelectorAll('#sw button')];
+const GL='@#%&*+=~-:;.oO0/\\|<>';
+let cur=null,busy=false;
+function size(){const d=Math.min(devicePixelRatio||1,2);fx.width=innerWidth*d;fx.height=innerHeight*d;c.setTransform(d,0,0,d,0,0);}
+size();addEventListener('resize',size);
+function mark(s){btns.forEach(b=>b.classList.toggle('on',b.dataset.s===s));}
+function pick(){const h=(location.hash||'').slice(1);return SC[h]?h:'sea';}
+// glyph dissolve: 0..1 cover, then 1..0 reveal
+function noise(t,hues){
+ const W=innerWidth,H=innerHeight,cw=Math.max(6,W/60),ch=cw*1.7;
+ c.clearRect(0,0,W,H);if(t<=0)return;
+ c.font='bold '+(cw*1.6).toFixed(1)+'px "SF Mono",ui-monospace,Menlo,monospace';c.textBaseline='top';
+ c.fillStyle='rgba(2,8,20,'+(t*.92).toFixed(3)+')';c.fillRect(0,0,W,H);
+ for(let y=0;y<H;y+=ch)for(let x=0;x<W;x+=cw){
+  const r=Math.random();if(r>t*1.05)continue;
+  const h=hues[(Math.random()*hues.length)|0];
+  c.fillStyle='hsl('+h+',80%,'+(40+Math.random()*40)+'%)';c.fillText(GL[(Math.random()*GL.length)|0],x,y);}
+}
+function anim(dur,from,to,hues){return new Promise(res=>{const t0=performance.now();
+ (function st(n){const k=Math.min(1,(n-t0)/dur);noise(from+(to-from)*k,hues);if(k<1)requestAnimationFrame(st);else res();})(t0);});}
+async function go(s,instant){
+ if(s===cur||busy)return;busy=true;mark(s);
+ const hues=SC[s].hues.concat(cur?SC[cur].hues:[]);
+ if(!instant)await anim(380,0,1,hues);
+ await new Promise(res=>{f.onload=()=>res();f.src=SC[s].src;setTimeout(res,1500);});
+ cur=s;try{f.contentWindow.focus();}catch(e){}
+ if(!instant)await anim(520,1,0,SC[s].hues);
+ c.clearRect(0,0,innerWidth,innerHeight);busy=false;
+ if(pick()!==s)go(pick());
+}
+btns.forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.s;if(location.hash!=='#'+s)history.replaceState(null,'','#'+s);go(s);}));
+addEventListener('hashchange',()=>go(pick()));
+go(pick(),true);
+})();
+</script>
+</body>
+</html>
