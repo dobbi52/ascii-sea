@@ -25,7 +25,7 @@ const hint=document.getElementById('hint');
 const fcv=document.createElement('canvas'),fctx=fcv.getContext('2d');let fimg,FD;
 const FONT='"SF Mono",ui-monospace,Menlo,Consolas,monospace';
 let W,H,dpr,cols,rows,cw,chH,fs,asp,n,fontStr,LAND=false;
-let FX0,FX1,FY0,FY1,MX,MY,SILL,FOG,TR,OVk,OVc,OVs;
+let FX0,FX1,FY0,FY1,MX,MY,SILL,FOG,TR,WT,OVk,OVc,OVs;
 function hash(x,y){let h=(Math.imul(x|0,374761393)+Math.imul(y|0,668265263))|0;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296;}
 function vn(x,y){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
  const a=hash(xi,yi),b=hash(xi+1,yi),c=hash(xi,yi+1),d=hash(xi+1,yi+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
@@ -43,7 +43,7 @@ const power=d=>tN-blackT>d; // 정전 후 d초가 지나면 다시 켜짐
 let houses=[],lamps=[],walkers=[],drops=[],cat=null,steam=[],carL=null,nextCar=8,puds=[],rips=[],spray=[],zz=[],hearts=[],mug={heat:1};
 let CAT0,MUGC,PLC,CK,SH,LP,books=[],RUG=null;
 function build(){
- n=cols*rows;FOG=new Float32Array(n);TR=new Float32Array(n);OVk=new Array(n);OVc=new Array(n);OVs=new Int32Array(n);
+ n=cols*rows;FOG=new Float32Array(n);TR=new Float32Array(n);WT=new Float32Array(n).fill(-99);OVk=new Array(n);OVc=new Array(n);OVs=new Int32Array(n);
  LAND=W>H;
  if(LAND){FX0=Math.round(cols*.2);FX1=Math.round(cols*.8);FY0=3;SILL=Math.round(rows*.74);}
  else{FX0=2;FX1=cols-3;FY0=2;SILL=Math.round(rows*.76);}
@@ -70,7 +70,7 @@ function build(){
  books=[];let bx=SH.x0+1;const bend=SH.x1-(LAND?5:9);
  while(bx<bend){const tall=1+(hash(bx,3)*2.2|0);books.push({c:bx,h:tall,hue:[0,30,200,120,280,45,170][(hash(bx,5)*7)|0],lean:hash(bx,8)<.15});bx+=2+(hash(bx,6)<.2?1:0);}
 }
-function fogTarget(c,r){const u=(c-FX0)/(FX1-FX0),v=(r-FY0)/(FY1-FY0),e=Math.min(u,1-u,v*1.2,(1-v)*.7);return cl(.95-e*1.6,.35,.95)*(1+shower*.08)*(1-(1-rainK)*.45);}
+function fogTarget(c,r){const u=(c-FX0)/(FX1-FX0),v=(r-FY0)/(FY1-FY0),e=Math.min(u,1-u,v*1.2,(1-v)*.7);return cl(.95-e*1.4,.6,.95)*(1+shower*.08)*(1-(1-rainK)*.45);}
 function newBead(x,y,s){return{x:x!==undefined?x:FX0+rnd()*(FX1-FX0),y:y!==undefined?y:FY0+rnd()*(FY1-FY0),s:s!==undefined?s:rnd()*.5,vy:0,ph:rnd()*9};}
 function inPane(c,r){return c>=FX0&&c<=FX1&&r>=FY0&&r<=FY1&&c!==MX&&r!==MY;}
 function inFrame(c,r){return c>=FX0-2&&c<=FX1+2&&r>=FY0-2&&r<SILL;}
@@ -110,7 +110,7 @@ const FR=[];function putF(c,r,ch,col,nb){FR.push(Math.round(c),Math.round(r),ch,
 function putN(c,r,ch,col){c=Math.round(c);r=Math.round(r);if(c<0||r<0||c>=cols||r>=rows)return;const i=r*cols+c;OVk[i]=ch;OVc[i]=col;OVs[i]=fid;}
 function putO(c,r,ch,col){if(inPane(Math.round(c),Math.round(r)))putN(c,r,ch,col);}
 function str(c,r,s,col,f){for(let q=0;q<s.length;q++)if(s[q]!==' '||f)(f||putN)(c+q,r,s[q],typeof col==='function'?col(s[q],q):col);}
-function wipe(cx,cy,rad){for(let r=Math.floor(cy-rad/asp-1);r<=cy+rad/asp+1;r++)for(let c=Math.floor(cx-rad-1);c<=cx+rad+1;c++){if(c<0||r<0||c>=cols||r>=rows)continue;const d=Math.hypot(c-cx,(r-cy)*asp);if(d<rad){const i=r*cols+c;FOG[i]=Math.min(FOG[i],(d/rad)*.25);}}
+function wipe(cx,cy,rad){for(let r=Math.floor(cy-rad/asp-1);r<=cy+rad/asp+1;r++)for(let c=Math.floor(cx-rad-1);c<=cx+rad+1;c++){if(c<0||r<0||c>=cols||r>=rows)continue;const d=Math.hypot(c-cx,(r-cy)*asp);if(d<rad){const i=r*cols+c;FOG[i]=Math.min(FOG[i],(d/rad)*.25);WT[i]=tN;}}
  for(let k=drops.length-1;k>=0;k--){const d=drops[k];if(Math.hypot(d.x-cx,(d.y-cy)*asp)<rad&&d.s<.9)drops.splice(k,1);}}
 function catHit(c,r){return Math.abs(c-(cat.c+2))<4.5&&r>SILL-6&&r<=SILL;}
 function near(c,r,x,y,rx,ry){return Math.abs(c-x)<=rx&&Math.abs(r-y)<=ry;}
@@ -129,7 +129,7 @@ function update(dt){
  flash=Math.max(0,flash-dt*2.5);
  RL+=((lampOn&&power(3.5)?1:.5)-RL)*Math.min(1,dt*4);
  // 김이 다시 서림
- for(let i=0;i<n;i++){const c=i%cols,r=(i/cols)|0;if(!inPane(c,r))continue;const tg=fogTarget(c,r);if(FOG[i]<tg)FOG[i]+=dt*.011;else if(FOG[i]>tg+.05)FOG[i]-=dt*.04;TR[i]=Math.max(0,TR[i]-dt*.05);}
+ for(let i=0;i<n;i++){const c=i%cols,r=(i/cols)|0;if(!inPane(c,r))continue;const tg=fogTarget(c,r);if(FOG[i]<tg){const w=tN-WT[i];if(w>2)FOG[i]=Math.min(tg,FOG[i]+dt*.03*(.5+hash(c*3,r*5))*Math.min(1,(w-2)/6));}else if(FOG[i]>tg+.05)FOG[i]-=dt*.04;TR[i]=Math.max(0,TR[i]-dt*.05);}
  // 유리 물방울
  const spawn=dt*(10+sh*40)*rainK;for(let k=0;k<spawn;k++)if(rnd()<spawn-k&&drops.length<320)drops.push(newBead(undefined,undefined,rnd()*.35));
  for(let k=drops.length-1;k>=0;k--){const d=drops[k];
@@ -270,9 +270,10 @@ function frame(now){
   if(bg){ctx.fillStyle=bg;ctx.fillRect(x,y,cw+.5,chH+.5);lastCol='';}
   const f=tr>.3?0:cl((fog-.3)/.6,0,1);
   FD[i*4+3]=f*105|0;
-  if(f>.55){if(br&&rn<.6){draw(rn<.3?'o':'.',hsl(45,60,48+(1-f)*14),c,r);continue;}
-   if(rn<.35+f*.4)draw(rn<.1?':':'.',hsl(210,12,44+f*12),c,r);continue;}
-  if(ch!==' '&&col)draw(ch,f>.2?hsl(210,10,48):col,c,r);
+  const dot=(f-.25)*1.3; // 김 알갱이: 서릴수록 하나씩 늘어남
+  if(rn<dot){if(br&&rn<.6){draw(rn<.3?'o':'.',hsl(45,60,48+(1-f)*14),c,r);continue;}
+   draw(rn<.1?':':'.',hsl(210,12,44+f*12),c,r);continue;}
+  if(ch!==' '&&col)draw(ch,br?col:f>.35?hsl(210,10,44+ (1-f)*10):col,c,r);
  }
  fctx.putImageData(fimg,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(fcv,FX0,FY0,FX1-FX0+1,FY1-FY0+1,FX0*cw,FY0*chH,(FX1-FX0+1)*cw,(FY1-FY0+1)*chH);
  for(const d of drops){const c=Math.round(d.x),r=Math.round(d.y);if(!inPane(c,r))continue;const big=d.s>.75;
