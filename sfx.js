@@ -49,6 +49,9 @@ window.SFX=(()=>{
   bike:()=>{const t=ac.currentTime,o=ac.createOscillator(),lp=ac.createBiquadFilter(),g=ac.createGain();o.type='sawtooth';o.frequency.setValueAtTime(70,t);o.frequency.linearRampToValueAtTime(140,t+1.6);o.frequency.linearRampToValueAtTime(80,t+2.6);
    lp.type='lowpass';lp.frequency.value=700;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.12,t+1.7);g.gain.linearRampToValueAtTime(.0001,t+2.7);o.connect(lp).connect(g).connect(master);o.start(t);o.stop(t+2.8);},
   purr:()=>{for(let k=0;k<10;k++)nz('lowpass',180,1,.12,.12,k*.16,0,brownBuf);},
+  boom:()=>{osc('sine',120,35,.9,.35);nz('lowpass',500,.6,.7,.3,0,120,brownBuf);},
+  crackle:()=>{for(let k=0;k<16;k++)nz('highpass',3500,.8,.02,.08,k*.05+R()*.05);},
+  laser:()=>{osc('sawtooth',1800,220,.6,.05);osc('sine',900,120,.6,.08);},
   chirpBird:()=>{for(let k=0;k<3;k++)osc('sine',2600,3900,.05,.07,k*.09);},
  };
  function play(name,o){if(!on||!ac||!S[name])return;const now=performance.now(),min=(o&&o.min)||40;if(last[name]&&now-last[name]<min)return;last[name]=now;try{S[name](o);}catch(e){}}
@@ -62,6 +65,8 @@ window.SFX=(()=>{
   else if(sc==='forest'){amb.a=loopNoise(noiseBuf,'bandpass',650,.5,.05);amb.r=loopNoise(noiseBuf,'highpass',1800,.5,0);
    ambT=setInterval(()=>{amb.a.fl.frequency.linearRampToValueAtTime(450+R()*500,ac.currentTime+.8);lvlTo(amb.r,lvl.rain*.1);
     if(lvl.night<.5){if(R()<.3)S.chirp();}else{if(R()<.6)S.crickets();if(R()<.12)S.croak();}},900);}
+  else if(sc==='city'){amb.a=loopNoise(brownBuf,'lowpass',110,.7,.22);amb.w=loopNoise(noiseBuf,'bandpass',400,.6,.04);
+   ambT=setInterval(()=>{amb.w.fl.frequency.linearRampToValueAtTime(300+R()*300,ac.currentTime+.8);if(R()<.06)S.bike();},900);}
   else if(sc==='neon'){amb.a=loopNoise(brownBuf,'lowpass',90,.7,.2);amb.r=loopNoise(noiseBuf,'highpass',1400,.5,.05);
    ambT=setInterval(()=>{lvlTo(amb.r,.04+lvl.rain*.1);if(R()<.08)S.bike();if(R()<.2)S.drip();},800);}
   else if(sc==='ant'){amb.a=loopNoise(brownBuf,'lowpass',130,.7,.28);amb.r=loopNoise(noiseBuf,'highpass',1600,.5,0);
