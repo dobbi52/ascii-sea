@@ -139,9 +139,9 @@ function put(x,y,ch,col,g){const c=Math.round(x),r=Math.round(y);if(c<0||r<0||c>
 function putH(x,y,ch,col,g){const c=Math.round(x),r=Math.round(y);if(c<0||r<0||c>=cols||r>=rows)return;const i=r*cols+c;OVk[i]=ch;OVc[i]=col;OVs[i]=fid;OVg[i]=g?fid:0;
  if(c>0)HL[i-1]=fid;if(c<cols-1)HL[i+1]=fid;if(r>0)HL[i-cols]=fid;if(r<rows-1)HL[i+cols]=fid;}
 const MIR={'(':')',')':'(','/':'\\','\\':'/','<':'>','>':'<','{':'}','}':'{'};
-function sprite(px,py,lines,right,colf){const w=Math.max(...lines.map(l=>l.length)),c0=Math.round(px/cw-w/2),r0=Math.round(py/chH-lines.length/2);
+function sprite(px,py,lines,right,colf,g){const w=Math.max(...lines.map(l=>l.length)),c0=Math.round(px/cw-w/2),r0=Math.round(py/chH-lines.length/2);
  for(let k=0;k<lines.length;k++){let ln=lines[k].padEnd(w,' ');if(!right)ln=[...ln].reverse().map(ch=>MIR[ch]||ch).join('');
-  for(let q=0;q<w;q++){const ch=ln[q];if(ch!==' ')putH(c0+q,r0+k,ch,colf(ch));}}}
+  for(let q=0;q<w;q++){const ch=ln[q];if(ch!==' ')putH(c0+q,r0+k,ch,colf(ch),g);}}}
 function putS(px,py,str,cols_){const c0=Math.round(px/cw),r=Math.round(py/chH);for(let k=0;k<str.length;k++){const ch=str[k];if(ch!==' ')put(c0+k,r,ch,typeof cols_==='string'?cols_:cols_[k]);}}
 function solid(px,py){const c=px/cw|0,r=py/chH|0;if(c<0||c>=cols||r<0)return false;if(r>=rows)return true;return T[r*cols+c]!==WAT;}
 
@@ -171,7 +171,7 @@ function init(){
  schools=[];fishes=[];jellies=[];bubbles=[];snow=[];plank=[];turtle=null;
  [{z:[.08,.6,.12,.45],h:45,l:96,n:32},{z:[.68,.92,.3,.8],h:52,l:68,n:24}].forEach(s=>{
   const [gx,gy]=waterPt(...s.z),sc={fish:[],gx,gy,gt:0,z:s.z,h:s.h,l:s.l};
-  for(let k=0;k<s.n;k++)sc.fish.push({x:gx+(rnd()-.5)*60,y:gy+(rnd()-.5)*40,vx:(rnd()-.5)*30,vy:0,p:0,hue:s.h+(rnd()-.5)*16});
+  for(let k=0;k<s.n;k++)sc.fish.push({x:gx+(rnd()-.5)*60,y:gy+(rnd()-.5)*40,vx:(rnd()-.5)*30,vy:0,p:0,hue:s.h+(rnd()-.5)*16,sch:1});
   schools.push(sc);});
  for(let k=0;k<7;k++){const [x,y]=waterPt(.05,.9,.1,.85);fishes.push({x,y,vx:0,vy:0,p:0,t:FISHT[k%FISHT.length],tx:x,ty:y,tt:0,sp:30+rnd()*15,bold:k%2===0,ox:(rnd()<.5?-1:1)*(30+rnd()*20),oy:(rnd()-.5)*40});}
  anems.forEach(a=>{for(let k=0;k<2;k++)fishes.push({x:a.x+(k?14:-14),y:a.y-10,vx:0,vy:0,p:0,clown:a,ph:rnd()*6,t:CLOWN,sp:40});});
@@ -181,14 +181,14 @@ function init(){
  for(let k=0;k<70;k++){const [x,y]=waterPt(.6,.98,.58,.95);plank.push({x,y,ph:rnd()*9,g:0});}
  nextTurtle=tN+5;nplank=[];for(let k=0;k<70;k++){const [x,y]=waterPt(.02,.98,.06,.6);nplank.push({x,y,ph:rnd()*9,g:0});}
  farF=[];[farG.x,farG.y]=waterPt(.1,.9,.15,.6);for(let k=0;k<36;k++)farF.push({x:farG.x+(rnd()-.5)*80,y:farG.y+(rnd()-.5)*50,vx:0,vy:0});
- rings=[];food=[];big=null;
+ rings=[];food=[];big=null;initDeep();
 }
 let nextTurtle=0,nextSweep=6,brush=null;
 let NT=0,shark=null,nextShark=22,oc=null,ink=[],crab=null,sparks=[],nplank=[];
 const SHARK={s:["            /|            ","  \\     _.-'  `'--.._     ","   >===(::#########  o`.. ","  /     `'--..__ /\\__..-' "],h:208,h2:205,sa:10,sb:12,lf:58,lo:76,gill:1};
 (()=>{const t=SHARK;let b=0;t.s.forEach((l,i)=>{if(l.trim().length>t.s[b].trim().length)b=i;});t.b=b;})();
 const OCT_T2=[" /|/\\|\\ "," /(/\\)\\ "," \\|\\/|/ "," (/\\/\\) "],OCT_T3=["~ ~  ~ ~"," ~ ~~ ~ ","~  ~ ~ ~"," ~ ~  ~~"];
-function spark(x,y,ch,col,life,vx,vy){if(sparks.length<160)sparks.push({x,y,ch,col,a:0,life,vx:vx||0,vy:vy||0});}
+function spark(x,y,ch,col,life,vx,vy,g){if(sparks.length<200)sparks.push({x,y,ch,col,a:0,life,vx:vx||0,vy:vy||0,g});}
 function scareOct(){if(!oc||oc.st==='jet')return;
  for(let k=0;k<46;k++){const a=rnd()*6.28,v=25+rnd()*90;ink.push({x:oc.x+(rnd()-.5)*10,y:oc.y+(rnd()-.5)*8,vx:Math.cos(a)*v,vy:Math.sin(a)*v*.7-10,a:0,life:3.5+rnd()*2});}
  deposit(oc.x,oc.y,0,0,1.4,40);
@@ -245,7 +245,7 @@ function updShark(dt){
  if(near){const b=SHARK.b,ln=L[b];L[b]=ln.replace("o`..","o`.<");}
  sprite(shark.x,shark.y,L,shark.d,fishCol(SHARK,0,0));
  if(shark.x>W*1.45||shark.x<-W*.45){shark=null;nextShark=tN+40+rnd()*20;}}
-function updSparks(dt){for(let k=sparks.length-1;k>=0;k--){const p=sparks[k];p.a+=dt;if(p.a>p.life){sparks.splice(k,1);continue;}p.x+=p.vx*dt;p.y+=p.vy*dt;put(p.x/cw,p.y/chH,p.ch,p.col);}}
+function updSparks(dt){for(let k=sparks.length-1;k>=0;k--){const p=sparks[k];p.a+=dt;if(p.a>p.life){sparks.splice(k,1);continue;}p.x+=p.vx*dt;p.y+=p.vy*dt;put(p.x/cw,p.y/chH,p.ch,p.col,p.g);}}
 const TURT=[
  ["     _.---._      ","   .'#. ## .#'.__ ","  (_#.##.##.#_(__o>","     /_/   \\_\\     "],
  ["     _.---._      ","   .'#. ## .#'.__ ","  (_#.##.##.#_(__o>","     \\_\\   /_/     "]];
@@ -257,6 +257,7 @@ function ringPush(x,y){RP[0]=0;RP[1]=0;RP[2]=0;for(const g of rings){const a=tN-
 function eatNear(f,rad){for(let k=food.length-1;k>=0;k--){const p=food[k];if(Math.abs(p.x-f.x)<rad&&Math.abs(p.y-f.y)<rad*.8){food.splice(k,1);f.nb=.25;if(rnd()<.5)bub(f.x,f.y-4,.15);return true;}}return false;}
 function nearestFood(x,y,maxd){let b=null,bd=maxd;for(const p of food){const d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;b=p;}}return b;}
 function steer(f,dt,max){
+ if(f.sch&&deep&&MIGv>.5&&deep.ang.lit>.5){const dx=deep.lx-f.x,dy=deep.ly-f.y,d=Math.hypot(dx,dy)+1;if(d<150){f.vx+=dx/d*140*dt;f.vy+=dy/d*140*dt;}}
  const fi=fIdx(f.x,f.y);f.vx+=FX[fi]*160*dt;f.vy+=FY[fi]*160*dt;
  if(flee.on){const dx=f.x-flee.x,dy=f.y-flee.y,d=Math.hypot(dx,dy);if(d<flee.r){const k=(1-d/flee.r)*1400*dt;f.vx+=dx/(d+1)*k;f.vy+=dy/(d+1)*k;f.p=1;}}
  ringPush(f.x,f.y);if(RP[2]>0){f.vx+=RP[0]*420*dt;f.vy+=RP[1]*420*dt;}
@@ -421,6 +422,112 @@ function drawKelp(dt){
    putH(a.c+j+o,a.rb-1-s,s===al-1?'o':s===1?'|':'(',hsl(330+j*3,75,s===2?82:56+s*8));}}
 }
 
+
+// ---------- night deep creatures ----------
+let deep=null,MIGv=0;
+const lerp=(a,b,t)=>a+(b-a)*t;
+function dWater(){return waterPt(.05,.95,.14,.62);}
+function initDeep(){
+ const dp=()=>[W*(.7+rnd()*.25),H*(.86+rnd()*.07)];
+ deep={lx:0,ly:0,
+  ang:{x:W*.8,y:H*.9,nx:W*.5,ny:H*.55,vx:0,vy:0,dir:false,open:0,cd:3,a:0,fx:0,lit:1,blk:0},
+  lan:[],lg:{x:W*.5,y:H*.4,t:0},sq:[],cj:[],sip:[],
+  vamp:{x:W*.85,y:H*.9,nx:W*.3,ny:H*.48,vx:0,vy:0,a:0,cloak:0,fx:0,ph:rnd()*9}};
+ for(let k=0;k<26;k++){const [x,y]=dp();deep.lan.push({x,y,vx:0,vy:0,ph:rnd()*9,fx:0});}
+ for(let k=0;k<7;k++){const [x,y]=dp(),[nx,ny]=dWater();deep.sq.push({x,y,nx,ny,dx:x,dy:y,vx:0,vy:0,ph:rnd(),per:1.4+rnd()*.8,fx:0,s:rnd()*9});}
+ for(let k=0;k<3;k++){const [x,y]=dp(),[nx,ny]=dWater();deep.cj.push({x,y,nx,ny,dx:x,dy:y,ph:rnd()*9,fx:0});}
+ for(let k=0;k<2;k++){const [x,y]=dp(),[nx,ny]=dWater();deep.sip.push({x,y,nx,ny,dx:x,dy:y,ph:rnd()*9,trail:[],pulse:-9,next:tN+3+rnd()*3});}
+}
+function gp(px,py,ch,col){put(px/cw,py/chH,ch,col,true);}
+function V_(l,vis){return l*vis;}
+function updDeep(dt){
+ if(!deep)return;
+ MIGv+=(NT-MIGv)*Math.min(1,dt*.6);const M=MIGv,vis=cl((M-.05)/.35,0,1);
+ // ---- anglerfish ----
+ const A=deep.ang;A.a+=dt;A.cd-=dt;A.open-=dt;A.fx*=Math.exp(-dt*2);
+ if(rnd()<dt*.06){A.nx=W*(.2+rnd()*.6);A.ny=H*(.4+rnd()*.25);}
+ const tx=lerp(W*.82,A.nx,M),ty=lerp(H*.9,A.ny,M);
+ A.vx+=((tx-A.x)*.35-A.vx*.9)*dt;A.vy+=((ty-A.y)*.35-A.vy*.9)*dt;
+ if(A.fx>.3){A.vx*=1.02;}
+ A.x+=A.vx*dt;A.y+=A.vy*dt;if(Math.abs(A.vx)>4)A.dir=A.vx>0;
+ const sg=A.dir?1:-1;
+ A.lit=A.fx>.2?0:1;A.blk=.65+.35*Math.sin(tN*3.2)+(Math.sin(tN*13)>.97?.3:0);
+ deep.lx=A.x+sg*cw*2.5;deep.ly=A.y-chH*2;
+ if(A.cd<=0&&vis>.5){const mx=A.x+sg*cw*4,my=A.y+chH*.6;let eaten=false;
+  for(const L of deep.lan){if(Math.hypot(L.x-mx,L.y-my)<18){L.x=W*(.7+rnd()*.25);L.y=H*.95;L.vx=L.vy=0;eaten=true;break;}}
+  if(!eaten)for(const sc of schools)for(const f of sc.fish){if(Math.hypot(f.x-mx,f.y-my)<18){f.x=rnd()<.5?-30:W+30;f.y=H*(.15+rnd()*.3);eaten=true;break;}}
+  if(eaten){A.open=.45;A.cd=4+rnd()*3;for(let k=0;k<6;k++)spark(mx,my,'*',hsl(55,100,80),.4,(rnd()-.5)*60,(rnd()-.5)*40,true);bub(mx,my-6,.4);bub(mx+4,my-8,.2);}
+ }
+ if(vis>.02){const op=A.open>0;
+  const Ls=["        *   ","       /    ","  _.--'--.  ",op?"><(###@  <  ":"><(###@  >) ",op?"  `-^^^-'   ":"  `-vvv-'   "];
+  const lb=A.lit?A.blk:0;
+  sprite(A.x,A.y,Ls,A.dir,ch=>ch==='*'?hsl(55,100,V_(30+lb*62,vis)):ch==='/'?hsl(30,25,V_(30,vis)):ch==='@'?hsl(190,40,V_(82,vis)):(ch==='v'||ch==='^')?hsl(40,20,V_(78,vis)):ch==='#'?hsl(20,28,V_(24+A.fx*30,vis)):hsl(25,22,V_(36+A.fx*30,vis)),true);
+  if(A.lit&&lb>.8&&rnd()<dt*3)spark(deep.lx+(rnd()-.5)*8,deep.ly+(rnd()-.5)*6,'.',hsl(55,100,75),.5,0,-4,true);
+ }
+ // ---- lanternfish school ----
+ const G=deep.lg;G.t-=dt;
+ if(G.t<0){G.t=5+rnd()*5;if(rnd()<.35&&vis>.5){G.x=deep.lx;G.y=deep.ly;}else{[G.x,G.y]=dWater();}}
+ const gx=lerp(W*.82,G.x,M),gy=lerp(H*.9,G.y,M);
+ let cx=0,cy=0,ax=0,ay=0;const LF=deep.lan,N=LF.length;for(const f of LF){cx+=f.x;cy+=f.y;ax+=f.vx;ay+=f.vy;}cx/=N;cy/=N;ax/=N;ay/=N;
+ for(let i=0;i<N;i++){const f=LF[i];let ux=(cx-f.x)*.5+(ax-f.vx)*1+(gx-f.x)*.35,uy=(cy-f.y)*.5+(ay-f.vy)*1+(gy-f.y)*.35;
+  for(let j=0;j<N;j++){if(i===j)continue;const g=LF[j],dx=f.x-g.x,dy=f.y-g.y,d2=dx*dx+dy*dy;if(d2<180&&d2>.01){ux+=dx/d2*800;uy+=dy/d2*800;}}
+  if(A.lit&&vis>.5){const dx=deep.lx-f.x,dy=deep.ly-f.y,d=Math.hypot(dx,dy)+1;if(d<140){ux+=dx/d*90;uy+=dy/d*90;}}
+  if(shark){const dx=f.x-shark.x,dy=f.y-shark.y,d=Math.hypot(dx,dy)+1;if(d<170){ux+=dx/d*900;uy+=dy/d*900;f.fx=1;}}
+  const fi=fIdx(f.x,f.y);f.vx+=(ux+(rnd()-.5)*40+FX[fi]*150)*dt;f.vy+=(uy+(rnd()-.5)*30+FY[fi]*150)*dt;
+  f.fx*=Math.exp(-dt*1.5);const lim=40+f.fx*110,sp=Math.hypot(f.vx,f.vy);if(sp>lim){f.vx*=lim/sp;f.vy*=lim/sp;}
+  f.x+=f.vx*dt;f.y+=f.vy*dt;if(solid(f.x,f.y)){f.y-=chH;f.vy=-Math.abs(f.vy);}
+  if(vis>.02){const R_=f.vx>0,c=f.x/cw,r=f.y/chH,sh=.5+.5*Math.sin(tN*5-f.x*.035+f.y*.02);
+   put(c,r,R_?'>':'<',hsl(205,40,V_(34+f.fx*40,vis)),true);
+   put(c+(R_?-1:1),r,sh>.55?':':'.',hsl(185,100,V_(35+sh*45+f.fx*25,vis)),true);}
+ }
+ // ---- firefly squid ----
+ for(const q of deep.sq){q.ph+=dt/q.per;const s=q.ph%1,con=s<.25;q.fx*=Math.exp(-dt*1.8);
+  if(rnd()<dt*.05)[q.nx,q.ny]=dWater();
+  const tx=lerp(q.dx,q.nx,M),ty=lerp(q.dy,q.ny,M),dx=tx-q.x,dy=ty-q.y,d=Math.hypot(dx,dy)+1;
+  if(con){q.vx+=dx/d*90*dt*Math.min(1,d/40);q.vy+=(dy/d*90*Math.min(1,d/40)-30)*dt;}
+  q.vy+=8*dt;q.vx*=Math.exp(-dt*1.4);q.vy*=Math.exp(-dt*1.4);
+  const fi=fIdx(q.x,q.y);q.vx+=FX[fi]*80*dt;q.vy+=FY[fi]*80*dt;
+  q.x+=q.vx*dt;q.y+=q.vy*dt;if(solid(q.x,q.y+chH*2))q.vy-=40*dt;
+  if(vis>.02){const L=[' /\\ ','(::)',con?'  | ':' /|\\'],fl=q.fx>.3;
+   sprite(q.x,q.y,L,true,ch=>{if(ch===':'){const b=Math.max(0,Math.sin(tN*4.5+q.s+(q.x*.01)));return hsl(215,100,V_(fl?96:28+b*55,vis));}return hsl(220,55,V_(fl?80:34,vis));},true);}
+ }
+ // ---- comb jellies ----
+ for(const j of deep.cj){j.fx*=Math.exp(-dt*1.5);if(rnd()<dt*.04)[j.nx,j.ny]=dWater();
+  const tx=lerp(j.dx,j.nx,M)+Math.sin(tN*.3+j.ph)*30,ty=lerp(j.dy,j.ny,M)+Math.sin(tN*.45+j.ph*2)*16;
+  j.x+=(tx-j.x)*dt*.35;j.y+=(ty-j.y)*dt*.35;const fi=fIdx(j.x,j.y);j.x+=FX[fi]*40*dt;j.y+=FY[fi]*40*dt;
+  if(vis>.02){let k=0;const L=[' .--. ','( :: )'," '--' "];
+   sprite(j.x,j.y,L,true,ch=>{if(ch===':')return hsl(190,30,V_(38+j.fx*30,vis));k++;return hsl((tN*150+k*48+j.ph*40)%360,100,V_(58+j.fx*30,vis));},true);}
+ }
+ // ---- siphonophores ----
+ for(const s of deep.sip){if(rnd()<dt*.04)[s.nx,s.ny]=dWater();
+  const tx=lerp(s.dx,s.nx,M)+Math.sin(tN*.25+s.ph)*40,ty=lerp(s.dy,s.ny,M)+Math.sin(tN*.4+s.ph)*20;
+  const dx=tx-s.x,dy=ty-s.y,d=Math.hypot(dx,dy)+1,v=Math.min(22,d*.4);s.x+=dx/d*v*dt;s.y+=dy/d*v*dt;
+  const t0=s.trail[0];if(!t0||Math.hypot(t0.x-s.x,t0.y-s.y)>cw*.9){s.trail.unshift({x:s.x,y:s.y});if(s.trail.length>22)s.trail.pop();}
+  if(tN>s.next){s.pulse=tN;s.next=tN+3.5+rnd()*3;}
+  if(vis>.02){const pi=(tN-s.pulse)*18;
+   s.trail.forEach((p,k)=>{const sway=Math.sin(tN*1.6-k*.45+s.ph)*cw*.7*(k/22),hot=Math.abs(k-pi)<1.6;
+    gp(p.x+sway,p.y+(k/22)*chH*2,k===0?'@':['O','o','8','o'][k%4],hsl(k%2?320:195,95,V_(hot?92:30+18*Math.sin(tN*2+k),vis)));});}
+ }
+ // ---- vampire squid ----
+ const Vs=deep.vamp;Vs.a+=dt;Vs.cloak-=dt;Vs.fx*=Math.exp(-dt*1.5);
+ if(rnd()<dt*.05)[Vs.nx,Vs.ny]=dWater();
+ {const tx=lerp(W*.86,Vs.nx,M),ty=lerp(H*.9,Vs.ny,M);Vs.vx+=((tx-Vs.x)*.3-Vs.vx*.9)*dt;Vs.vy+=((ty-Vs.y)*.3-Vs.vy*.9+Math.sin(Vs.a*1.4)*6)*dt;
+  Vs.x+=Vs.vx*dt;Vs.y+=Vs.vy*dt;
+  if(Vs.cloak>0&&rnd()<dt*14)spark(Vs.x+(rnd()-.5)*30,Vs.y+(rnd()-.5)*20,rnd()<.5?'*':'+',hsl(200,100,80),1.2+rnd(),(rnd()-.5)*20,(rnd()-.5)*14,true);
+  if(vis>.02){const ck=Vs.cloak>0,fin=((Vs.a*3)|0)%2;
+   const L=ck?['  .--.  ',' (\\/\\/) ','  \\  /  ','   \\/   ']:[fin?'  ^  ^  ':'  -  -  ',' (o  o) ',' /||||\\ ','/ |||| \\'];
+   sprite(Vs.x,Vs.y,L,true,ch=>ch==='o'?hsl(205,100,V_(72+Vs.fx*20,vis)):(ch==='^'||ch==='-')?hsl(350,50,V_(40,vis)):hsl(350,58,V_(ck?40:30+Vs.fx*25,vis)),true);}}
+}
+function deepTap(x,y){
+ if(!deep||MIGv<.15)return;
+ const A=deep.ang;if(Math.hypot(A.x-x,A.y-y)<70){A.fx=1;A.vx+=(A.x-x)*2;A.vy+=(A.y-y)*2;}
+ for(const f of deep.lan){const d=Math.hypot(f.x-x,f.y-y);if(d<120){f.fx=1;f.vx+=(f.x-x)/(d+1)*200;f.vy+=(f.y-y)/(d+1)*200;}}
+ for(const q of deep.sq){const d=Math.hypot(q.x-x,q.y-y);if(d<150){q.fx=1;q.vx+=(q.x-x)/(d+1)*160;q.vy+=(q.y-y)/(d+1)*160-40;q.ph=Math.floor(q.ph);}}
+ for(const j of deep.cj){if(Math.hypot(j.x-x,j.y-y)<80)j.fx=1;}
+ for(const s of deep.sip){if(s.trail.some(p=>Math.hypot(p.x-x,p.y-y)<50))s.pulse=tN;}
+ const V=deep.vamp;if(Math.hypot(V.x-x,V.y-y)<70){V.cloak=2.6;V.fx=1;V.vx+=(V.x-x)*1.5;V.vy+=(V.y-y)*1.5;}
+}
+
 // ---------- main ----------
 let tN=0,last=0,fid=0,bgG=null;
 try{const m=location.hash.match(/^#t(\d+)$/);if(m)tN=+m[1];}catch(e){}
@@ -440,7 +547,7 @@ function frame(now){
  updField(dt);
  if(down&&!feeding&&moved<14&&tN-downT>.45){feeding=true;if(!touched2){touched2=true;}}
  {const p=((tN+12)/120)%1;NT=p<.45?0:p<.55?(p-.45)/.1:p<.88?1:1-(p-.88)/.12;NT=NT*NT*(3-2*NT);}
- drawFar(dt);updDrift(dt);updFood(dt);drawKelp(dt);updCrab(dt);updOct(dt);updCreatures(dt);updShark(dt);updSparks(dt);
+ drawFar(dt);updDrift(dt);updFood(dt);drawKelp(dt);updCrab(dt);updOct(dt);updCreatures(dt);updShark(dt);updDeep(dt);updSparks(dt);
  const glowL=[];
  ctx.setTransform(dpr,0,0,dpr,0,0);if(!bgG){bgG=ctx.createLinearGradient(0,0,0,H);bgG.addColorStop(0,'#0b4a63');bgG.addColorStop(.35,'#06283f');bgG.addColorStop(.7,'#030f20');bgG.addColorStop(1,'#01050c');}ctx.fillStyle=bgG;ctx.fillRect(0,0,W,H);
  ctx.font=fontStr;ctx.textBaseline='top';
@@ -502,6 +609,7 @@ function tap(x,y){
   if(f.tx!==undefined&&!f.clown)f.cur={x,y,t0:tN+1.1+rnd()*.8,t1:tN+5+rnd()*2};}}
  schools.forEach(s=>{if(Math.hypot(s.fish[0].x-x,s.fish[0].y-y)<260)s.lure={x,y,t0:tN+1.6,t1:tN+4.5};});
  if(oc&&Math.hypot(oc.x-x,oc.y-y)<55)scareOct();
+ deepTap(x,y);
  if(!touched){touched=true;hint.style.opacity=0;}
 }
 function drag(x,y,ts){
