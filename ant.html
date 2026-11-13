@@ -24,7 +24,7 @@ const gv=document.getElementById('g'),gx=gv.getContext('2d');
 const hint=document.getElementById('hint');
 const FONT='"SF Mono",ui-monospace,Menlo,Consolas,"Courier New",monospace';
 let W,H,dpr,cols,rows,cw,chH,fs,asp,n,fontStr,S,E;
-let TUN,RN,V,FR,NEWT,RID,PH,GRS,OVk,OVc,OVs,HL,WX;
+let TUN,OBS,OBK,OBC,RN,V,FR,NEWT,RID,PH,WT,SUMP,GRS,WX,OVk,OVc,OVs,HL;
 const INF=30000;
 
 function hash(x,y){let h=(Math.imul(x|0,374761393)+Math.imul(y|0,668265263))|0;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296;}
@@ -40,54 +40,82 @@ let tN=0,last=0,fid=0,NT=0;
 try{const m=location.hash.match(/^#t(\d+)$/);if(m)tN=+m[1];}catch(e){}
 
 // ---------- world ----------
-let rooms=[],fields={},dirty=true,sfood=[],ants=[],queen=null,jobs=[],expands=[],worm=null,mole=null,nextMole=30,dirtT=[],parts=[],nextDrop=8;
+const FOOD=0,NURSE=1,QUEEN=2,TRASH=3,FARM=4,RANCH=5,SLEEP=6,SUMPR=7,BASE_ROOMS=8;
+let rooms=[],fields={},dirty=true,sfood=[],tfood=[],ants=[],foes=[],queen=null,jobs=[],expands=[],worm=null,mole=null,nextMole=30,dirtT=[],parts=[],nextDrop=8;
+let rain=null,big=null,nextEvent=35,evIdx=0,nextFlight=70,guardI=0,aphids=[],mush=[],flood=0,foeT=0,watT=0,wTick=0;
 const idx=(c,r)=>r*cols+c;
 const inb=(c,r)=>c>=0&&r>=0&&c<cols&&r<rows;
 function walk(i){const r=(i/cols)|0;return TUN[i]===1||r===S-1;}
-function carve(c,r,t){if(!inb(c,r)||r<S)return false;const i=idx(c,r);if(TUN[i])return false;TUN[i]=1;if(t!==undefined)NEWT[i]=t;dirty=true;return true;}
-function carveLine(c0,r0,c1,r1,wide){const st=Math.max(Math.abs(c1-c0),Math.abs(r1-r0)*2,1);
- for(let k=0;k<=st;k++){const c=Math.round(c0+(c1-c0)*k/st),r=Math.round(r0+(r1-r0)*k/st);carve(c,r);if(wide||Math.abs(r1-r0)*asp>Math.abs(c1-c0))carve(c+1,r);}}
-function carvePath(pts,wide){for(let k=0;k<pts.length-1;k++)carveLine(pts[k][0],pts[k][1],pts[k+1][0],pts[k+1][1],wide);}
+function carve(c,r,t){if(!inb(c,r)||r<S)return false;const i=idx(c,r);if(TUN[i]||OBS[i])return false;TUN[i]=1;if(t!==undefined)NEWT[i]=t;dirty=true;return true;}
+function carveLine(c0,r0,c1,r1){const st=Math.max(Math.abs(c1-c0),Math.abs(r1-r0)*2,1);
+ for(let k=0;k<=st;k++){const c=Math.round(c0+(c1-c0)*k/st),r=Math.round(r0+(r1-r0)*k/st);carve(c,r);if(Math.abs(r1-r0)*asp>Math.abs(c1-c0))carve(c+1,r);}}
+function carvePath(pts){for(let k=0;k<pts.length-1;k++)carveLine(pts[k][0],pts[k][1],pts[k+1][0],pts[k+1][1]);}
 function carveRoom(k,cx,cy,rx,ry){for(let r=Math.floor(cy-ry-1);r<=cy+ry+1;r++)for(let c=Math.floor(cx-rx-1);c<=cx+rx+1;c++){
  const dx=(c-cx)/rx,dy=(r-cy)/ry,d=dx*dx+dy*dy*(dy>0?1.4:1);if(d<1+.15*(hash(c,r)-.5)&&inb(c,r)&&r>S+1){carve(c,r);RID[idx(c,r)]=k;}}}
 function floorOf(k){const out=[];for(let i=0;i<n;i++)if(RID[i]===k&&TUN[i]&&i+cols<n&&!TUN[i+cols])out.push(i);out.sort((a,b)=>(a%cols)-(b%cols));return out;}
+function setObs(c,r,ch,col,kind){if(!inb(c,r)||r<=S)return;const i=idx(c,r);if(TUN[i])return;OBS[i]=kind;OBK[i]=ch;OBC[i]=col;}
 
 function build(){
- n=cols*rows;S=Math.round(rows*.17);E=Math.round(cols*.56);
- TUN=new Uint8Array(n);RN=new Float32Array(n);V=new Float32Array(n);FR=new Float32Array(n);NEWT=new Float32Array(n).fill(-1);RID=new Int8Array(n).fill(-1);PH=new Float32Array(n);GRS=new Int8Array(cols);WX=new Float32Array(cols);
+ n=cols*rows;S=Math.round(rows*.15);E=Math.round(cols*.56);
+ TUN=new Uint8Array(n);OBS=new Uint8Array(n);OBK=new Array(n);OBC=new Array(n);RN=new Float32Array(n);V=new Float32Array(n);FR=new Float32Array(n);NEWT=new Float32Array(n).fill(-1);
+ RID=new Int8Array(n).fill(-1);PH=new Float32Array(n);WT=new Float32Array(n);SUMP=new Uint8Array(n);GRS=new Int8Array(cols);WX=new Float32Array(cols);
  OVk=new Array(n);OVc=new Array(n);OVs=new Int32Array(n);HL=new Int32Array(n);
  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const i=idx(c,r);RN[i]=hash(c*7+3,r*13+5);V[i]=fbm(c*.18,r*.3);}
  for(let c=0;c<cols;c++)GRS[c]=hash(c,77)<.18?0:1+(hash(c,91)*3|0);
- const C=f=>Math.round(cols*f),R=f=>Math.round(rows*f);
- rooms=[{name:'food',cx:C(.2),cy:R(.36),rx:Math.max(6,C(.1)),ry:2.6,store:12},
-        {name:'nurse',cx:C(.8),cy:R(.5),rx:Math.max(6,C(.1)),ry:2.6,eggs:4,larva:3,fed:0},
-        {name:'queen',cx:C(.5),cy:R(.82),rx:Math.max(8,C(.13)),ry:3.2},
-        {name:'trash',cx:C(.14),cy:R(.64),rx:Math.max(4,C(.07)),ry:2,trash:6}];
+ const C=f=>Math.round(cols*f),R=f=>Math.round(rows*f),rx=Math.max(5,C(.085));
+ rooms=[{name:'food',cx:C(.2),cy:R(.32),rx:rx+1,ry:2.5,store:12,ev:0},
+        {name:'nurse',cx:C(.8),cy:R(.5),rx,ry:2.4,eggs:4,larva:3,fed:0},
+        {name:'queen',cx:C(.52),cy:R(.8),rx:rx+3,ry:3},
+        {name:'trash',cx:C(.18),cy:R(.71),rx:Math.max(4,rx-2),ry:2,trash:6},
+        {name:'farm',cx:C(.8),cy:R(.29),rx,ry:2.4,mulch:6},
+        {name:'ranch',cx:C(.15),cy:R(.5),rx:rx-1,ry:2.3},
+        {name:'sleep',cx:C(.46),cy:R(.6),rx:rx-1,ry:2},
+        {name:'sump',cx:C(.84),cy:R(.88),rx:rx-1,ry:2.2}];
  rooms.forEach((m,k)=>carveRoom(k,m.cx,m.cy,m.rx,m.ry));
- carvePath([[E,S],[E,S+3],[E-1,S+6],[C(.5),R(.32)]]);
- carvePath([[C(.5),R(.32)],[C(.38),R(.34)],[C(.2)+4,R(.36)+1]]);
- carvePath([[C(.5),R(.32)],[C(.53),R(.42)],[C(.56),R(.52)]]);
- carvePath([[C(.56),R(.52)],[C(.68),R(.5)],[C(.8)-4,R(.5)+1]]);
- carvePath([[C(.56),R(.52)],[C(.4),R(.58)],[C(.28),R(.62)],[C(.14)+3,R(.64)+1]]);
- carvePath([[C(.56),R(.52)],[C(.54),R(.66)],[C(.5),R(.74)],[C(.5),R(.8)]]);
- carvePath([[C(.5),R(.32)],[C(.66),R(.28)],[C(.8),R(.27)]]);
- for(let i=0;i<n;i++)NEWT[i]=-1;
+ const P=(a,b)=>[C(a),R(b)];
+ carvePath([[E,S],[E,S+3],P(.54,.2),P(.5,.25)]);
+ carvePath([P(.5,.25),P(.36,.27),[C(.2)+rx,R(.32)]]);
+ carvePath([P(.5,.25),P(.64,.25),[C(.8)-rx,R(.29)]]);
+ carvePath([P(.5,.25),P(.49,.34),P(.48,.42)]);
+ carvePath([P(.48,.42),P(.3,.46),[C(.15)+rx-1,R(.5)]]);
+ carvePath([P(.48,.42),P(.66,.46),[C(.8)-rx,R(.5)]]);
+ carvePath([P(.48,.42),P(.46,.5),P(.46,.58)]);
+ carvePath([P(.46,.6),P(.42,.66),P(.4,.68)]);
+ carvePath([P(.4,.68),P(.3,.7),[C(.18)+3,R(.71)]]);
+ carvePath([P(.4,.68),P(.46,.74),P(.5,.78)]);
+ carvePath([[C(.52)+rx+2,R(.8)+1],P(.7,.85),[C(.84)-rx+1,R(.88)]]);
+ carvePath([[C(.8)+2,R(.5)+2],P(.88,.6),P(.74,.7),P(.66,.77)]);
+ carvePath([[C(.8)+rx-1,R(.29)],P(.9,.38),[C(.8)+3,R(.5)-2]]);
+ // treasures (unbreakable)
+ const fos=["   _.-''''-.____","  (  o   .--.  __>"," `'-.\\/\\/\\/\\/-'`"];
+ const fc=C(.06),fr=R(.9);fos.forEach((ln,k)=>{for(let q=0;q<ln.length;q++)if(ln[q]!==' ')setObs(fc+q,fr+k,ln[q],hsl(44,22,70),1);});
+ "o==o".split('').forEach((ch,q)=>setObs(C(.34)+q,R(.6),ch,hsl(44,22,66),1));
+ ['(','$',')'].forEach((ch,q)=>setObs(C(.66)+q,R(.66),ch,hsl(48,90,60),2));
+ {let c=0,r=S+1;for(let k=0;k<R(.3);k++){setObs(c,r,k%3===2?'|':'\\',hsl(32,38,40),3);setObs(c+1,r,'\\',hsl(32,38,34),3);if(k%5===3)setObs(c+2,r,'_',hsl(32,38,40),3);r++;if(k%2)c++;if(c>C(.06))c--;}}
+ for(let c=0;c<cols;c++)for(let r=rows-2;r<rows;r++)setObs(c,r,'~',hsl(200,70,50),4);
+ for(let i=0;i<n;i++){NEWT[i]=-1;if(RID[i]===SUMPR){SUMP[i]=1;const r=(i/cols)|0;if(r>=rooms[SUMPR].cy)WT[i]=1;}}
  rooms.forEach((m,k)=>m.floor=floorOf(k));
+ guardI=idx(C(.5),R(.25));
  dirty=true;recompute();
- sfood=[];jobs=[];expands=[];parts=[];dirtT=[];
+ sfood=[];tfood=[];jobs=[];expands=[];parts=[];dirtT=[];foes=[];rain=null;big=null;
  queen={eggs:2,t:3,a:0};
- ants=[];const roles=['forage','forage','forage','forage','forage','forage','forage','forage','forage','forage','forage','forage','nurse','nurse','nurse','nurse','nurse','nurse','nurse','nurse','clean','clean','idle','idle','idle','idle','idle','idle','idle','idle','idle','idle','forage','nurse','idle','idle'];
+ aphids=[];const rf=rooms[RANCH].floor;for(let k=0;k<6;k++)aphids.push({i:rf[(k*3+1)%rf.length],ph:rnd()*9,o:0});
+ mush=[];const ff=rooms[FARM].floor;for(let k=0;k<ff.length;k+=3)mush.push({i:ff[k],g:rnd()});
+ ants=[];
+ const roles=[];const add=(r,k)=>{for(let q=0;q<k;q++)roles.push(r);};
+ add('forage',12);add('nurse',7);add('clean',2);add('leaf',3);add('ranch',2);add('soldier',5);add('wing',4);add('idle',9);
  roles.forEach(ro=>spawnAnt(ro));
- worm={pts:[],c:cols*.3,r:rows*.7,h:rnd()*6,sp:2.2};
- mole=null;nextMole=tN+25;
+ worm={pts:[],c:cols*.3,r:rows*.55,h:rnd()*6,sp:2.2};
+ mole=null;nextMole=tN+28;nextEvent=tN+30;nextFlight=tN+60;
 }
+function randTun(room){const list=[];for(let k=0;k<n;k++)if(TUN[k]&&((k/cols)|0)>S+1&&(room===undefined||RID[k]===room)&&!SUMP[k])list.push(k);return list[(rnd()*list.length)|0];}
 function spawnAnt(role,at){
- let i;if(at!==undefined)i=at;else{const tun=[];for(let k=0;k<n;k++)if(TUN[k]&&((k/cols)|0)>S+1)tun.push(k);i=tun[(rnd()*tun.length)|0];}
- const a={c:i%cols,r:(i/cols)|0,pc:i%cols,pr:(i/cols)|0,t:1,spd:5+rnd()*2.5,role,st:null,carry:null,alarm:0,pause:0,fl:rnd()*9,dc:1,dr:0,rest:0,greet:0,gcd:2+rnd()*3};
+ const i=at!==undefined?at:randTun(role==='wing'?QUEEN:undefined);
+ const a={c:i%cols,r:(i/cols)|0,t:1,spd:5+rnd()*2.5,role,st:null,carry:null,alarm:0,pause:0,fl:rnd()*9,dc:1,dr:0,rest:0,gcd:2+rnd()*3,hp:role==='soldier'?8:4,biting:0};
  a.pc=a.c;a.pr=a.r;resetTask(a);ants.push(a);return a;}
 
 function bfs(src){const D=new Int16Array(n).fill(INF),q=new Int32Array(n);let h=0,t=0;
- for(const i of src)if(walk(i)&&D[i]!==0){D[i]=0;q[t++]=i;}
+ for(const i of src)if(i>=0&&i<n&&walk(i)&&D[i]!==0){D[i]=0;q[t++]=i;}
  while(h<t){const i=q[h++],c=i%cols,d=D[i]+1;
   const nb=[c>0?i-1:-1,c<cols-1?i+1:-1,i-cols,i+cols];
   for(const j of nb){if(j<0||j>=n)continue;if(D[j]<=d||!walk(j))continue;D[j]=d;q[t++]=j;}}
@@ -97,42 +125,79 @@ function recompute(){
  fields.ent=bfs([idx(E,S-1),idx(E+1,S-1)]);
  rooms.forEach((m,k)=>{m.floor=floorOf(k);fields['r'+k]=bfs(m.floor.length?m.floor:[idx(Math.round(m.cx),Math.round(m.cy))]);});
  fields.sfood=bfs(sfood.map(f=>idx(f.c,S-1)));
+ fields.tfood=bfs(tfood.map(f=>f.i));
  const nw=[];for(let i=0;i<n;i++)if(NEWT[i]>=0&&TUN[i])nw.push(i);fields.new=bfs(nw);
+ fields.guard=bfs([guardI]);
+ fields.big=big?bfs(bigCells()):bfs([]);
+ fields.foe=bfs(foes.map(f=>idx(f.c,f.r)));
+ updWaterField();
  jobs.forEach(j=>{if(j.ant)j.F=bfs([idx(j.c,j.r)]);});
 }
+function updWaterField(){const src=[];for(let i=0;i<n;i++)if(WT[i]>.35&&TUN[i]&&!SUMP[i])src.push(i);fields.water=bfs(src);}
+function bigCells(){const out=[];for(let q=-1;q<=big.len;q++){const c=Math.round(big.c)+q;if(c>=0&&c<cols)out.push(idx(c,S-1));}return out;}
 
 // ---------- ant brains ----------
-function resetTask(a){a.tgt=null;a.st=null;
- if(a.role==='forage'){a.st='toEnt';a.tgt='ent';}
- else if(a.role==='nurse'){a.st='getFood';a.tgt='r0';}
- else if(a.role==='clean'){a.st='getTrash';a.tgt='r0';}
- else{a.st='wander';a.tgt=null;a.wt=3+rnd()*6;}
- if(a.role==='haul'){a.st='getFood';a.tgt='r0';}
+function resetTask(a){a.tgt=null;a.st=null;a.job=null;
+ switch(a.role){
+  case 'forage':a.st='toEnt';a.tgt='ent';break;
+  case 'nurse':a.st='getFood';a.tgt='r0';break;
+  case 'clean':a.st='getTrash';a.tgt='r0';break;
+  case 'leaf':a.st='toEnt';a.tgt='ent';break;
+  case 'ranch':a.st='toRanch';a.tgt='r'+RANCH;break;
+  case 'soldier':a.st='guard';a.tgt='guard';break;
+  case 'wing':a.st='settle';a.tgt='r'+QUEEN;break;
+  case 'haul':a.st='getFood';a.tgt='r0';break;
+  default:a.st='wander';a.wt=3+rnd()*6;
+ }
 }
 function arrive(a){
- const F=fields;
+ const m0=rooms[FOOD];
  switch(a.st){
-  case 'toEnt':if(sfood.length){a.st='toSF';a.tgt='sfood';}else{a.st='scout';a.tgt=null;a.wt=5+rnd()*8;}break;
+  case 'toEnt':
+   if(rain){a.st='home';a.tgt='r0';break;}
+   if(a.role==='leaf'){a.st='leafCut';a.tgt=null;a.wt=3+rnd()*5;a.dc=rnd()<.5?1:-1;break;}
+   if(big&&big.car.length<big.need+2){a.st='toBig';a.tgt='big';break;}
+   if(sfood.length){a.st='toSF';a.tgt='sfood';}else{a.st='scout';a.tgt=null;a.wt=5+rnd()*8;a.dc=rnd()<.5?1:-1;}break;
   case 'toSF':{const f=sfood.find(f=>Math.abs(f.c-a.c)<=1);if(f){f.amt--;a.carry={ch:f.ch,col:f.col};if(f.amt<=0){sfood.splice(sfood.indexOf(f),1);dirty=true;}a.st='home';a.tgt='r0';}
    else{a.st=sfood.length?'toSF':'scout';a.tgt=sfood.length?'sfood':null;a.wt=4;}break;}
-  case 'home':if(a.carry){rooms[0].store=Math.min(rooms[0].store+1,rooms[0].floor.length*2);a.carry=null;recruit();}
-   a.rest=.6+rnd();a.st='toEnt';a.tgt='ent';if(!sfood.length&&rnd()<.5){a.rest=3+rnd()*4;}break;
-  case 'getFood':if(rooms[0].store>2){rooms[0].store--;a.carry={ch:',',col:hsl(42,70,62)};
-    if(a.role==='haul'&&a.room){a.st='toRoom';a.tgt='r'+a.room;}else{a.st='feed';a.tgt='r1';}}
+  case 'toBig':if(big&&big.car.length<big.need+2){big.car.push(a);a.st='haulBig';a.bo=big.car.length-1;}else{resetTask(a);}break;
+  case 'home':if(a.carry){if(a.carry.ch!=='~'){m0.store=Math.min(m0.store+1,m0.floor.length*2);recruit();}a.carry=null;}
+   a.rest=.6+rnd();if(a.role==='forage'||a.role==='leaf'){a.st='toEnt';a.tgt='ent';if(!sfood.length&&rnd()<.5)a.rest=3+rnd()*4;}else resetTask(a);break;
+  case 'getTF':{const k=tfood.findIndex(f=>Math.abs(f.i%cols-a.c)<=1&&Math.abs(((f.i/cols)|0)-a.r)<=1);if(k>=0){a.carry={ch:tfood[k].ch,col:tfood[k].col};tfood.splice(k,1);dirty=true;a.st='home';a.tgt='r0';}else resetTask(a);break;}
+  case 'getFood':
+   if(a.role==='nurse'&&mush.some(m=>m.g>.8)&&rnd()<.4){a.st='getMush';a.tgt='r'+FARM;break;}
+   if(m0.store>2){m0.store--;a.carry={ch:',',col:hsl(42,70,62)};
+    if(a.role==='haul'&&a.room){a.st='toRoom';a.tgt='r'+a.room;}else{a.st='feed';a.tgt='r'+NURSE;}}
    else{a.rest=2;}break;
-  case 'feed':a.carry=null;rooms[1].fed++;if(rooms[1].fed>=3&&rooms[1].larva>0){rooms[1].fed=0;rooms[1].larva--;if(ants.length<70){const b=spawnAnt(rnd()<.6?'forage':'idle',rooms[1].floor[(rnd()*rooms[1].floor.length)|0]);b.alarm=0;spark(b.c,b.r-1,'+',hsl(50,90,80),.8);}}
-   a.st='getEgg';a.tgt='r2';break;
-  case 'getEgg':if(queen.eggs>0){queen.eggs--;a.carry={ch:'o',col:hsl(48,40,92)};a.st='bringEgg';a.tgt='r1';}else{a.st='getFood';a.tgt='r0';a.rest=1;}break;
-  case 'bringEgg':a.carry=null;rooms[1].eggs=Math.min(rooms[1].eggs+1,rooms[1].floor.length);a.st='getFood';a.tgt='r0';break;
-  case 'getTrash':a.carry={ch:'%',col:hsl(30,15,50)};a.st='dump';a.tgt='r3';break;
-  case 'dump':a.carry=null;rooms[3].trash=Math.min(rooms[3].trash+1,rooms[3].floor.length*2);a.st='getTrash';a.tgt='r0';a.rest=4+rnd()*6;break;
-  case 'toRoom':a.carry=null;const m=rooms[a.room];if(m)m.store=(m.store||0)+1;if(m&&m.store>=Math.max(3,m.floor.length*1.5)){a.role='idle';}a.st='getFood';a.tgt='r0';break;
+  case 'getMush':{const m=mush.find(m=>m.g>.8);if(m){m.g=.1;a.carry={ch:'T',col:hsl(40,30,88)};a.st='feed';a.tgt='r'+NURSE;}else{a.st='getFood';a.tgt='r0';}break;}
+  case 'feed':{a.carry=null;const nr=rooms[NURSE];nr.fed++;if(nr.fed>=3&&nr.larva>0){nr.fed=0;nr.larva--;if(ants.length<64){const b=spawnAnt(rnd()<.12?'soldier':rnd()<.6?'forage':'idle',nr.floor[(rnd()*nr.floor.length)|0]);spark(b.c,b.r-1,'+',hsl(50,90,80),.8);}}
+   a.st='getEgg';a.tgt='r'+QUEEN;break;}
+  case 'getEgg':if(queen.eggs>0){queen.eggs--;a.carry={ch:'o',col:hsl(48,40,92)};a.st='bringEgg';a.tgt='r'+NURSE;}else{a.st='getFood';a.tgt='r0';a.rest=1;}break;
+  case 'bringEgg':a.carry=null;rooms[NURSE].eggs=Math.min(rooms[NURSE].eggs+1,rooms[NURSE].floor.length);a.st='getFood';a.tgt='r0';break;
+  case 'getTrash':a.carry={ch:'%',col:hsl(30,15,50)};a.st='dump';a.tgt='r'+TRASH;break;
+  case 'dump':a.carry=null;rooms[TRASH].trash=Math.min(rooms[TRASH].trash+1,rooms[TRASH].floor.length*2);a.st='getTrash';a.tgt='r0';a.rest=4+rnd()*6;break;
+  case 'toFarm':a.carry=null;rooms[FARM].mulch=Math.min(rooms[FARM].mulch+1,rooms[FARM].floor.length);mush.forEach(m=>m.g=Math.min(1,m.g+.15));a.st='toEnt';a.tgt='ent';a.rest=1;break;
+  case 'toRanch':{a.rest=1.2+rnd();const ap=aphids[(rnd()*aphids.length)|0];if(ap)ap.o=1;a.carry={ch:'.',col:hsl(50,95,65)};a.st='home';a.tgt='r0';break;}
+  case 'toRoom':{a.carry=null;const m=rooms[a.room];if(m)m.store=(m.store||0)+1;if(m&&m.store>=Math.max(3,m.floor.length*1.5)){a.role='idle';}a.st='getFood';a.tgt='r0';break;}
   case 'explore':{for(let dr=-2;dr<=2;dr++)for(let dc=-3;dc<=3;dc++)if(inb(a.c+dc,a.r+dr))NEWT[idx(a.c+dc,a.r+dr)]=-1;dirty=true;
    let nb=0;[[1,0],[-1,0],[0,1],[0,-1]].forEach(([x,y])=>{if(inb(a.c+x,a.r+y)&&TUN[idx(a.c+x,a.r+y)])nb++;});
    const far=rooms.every(m=>Math.hypot((m.cx-a.c),(m.cy-a.r)*asp)>m.rx+8);
-   if(nb<=2&&far&&rooms.length<8&&rnd()<.65&&a.r>S+3)expands.push({c:a.c,r:a.r,p:0,rx:3+rnd()*2,ry:1.6+rnd()*.6});
+   if(nb<=2&&far&&rooms.length<14&&rnd()<.65&&a.r>S+3)expands.push({c:a.c,r:a.r,p:0,rx:3+rnd()*2,ry:1.6+rnd()*.6});
    a.st='wander';a.tgt=null;a.wt=2;break;}
+  case 'guard':a.st='patrol';a.tgt=null;a.wt=3+rnd()*4;break;
+  case 'settle':a.st='wander';a.tgt=null;a.wt=4+rnd()*6;a.rest=1+rnd()*3;break;
+  case 'sleepGo':a.st='sleeping';a.rest=6+rnd()*8;break;
+  case 'flyOut':{const i=ants.indexOf(a);if(i>=0)ants.splice(i,1);parts.push({k:'fly',x:a.c,y:a.r-1,a:0,ph:rnd()*9,vx:(rnd()-.5)*4});break;}
+  case 'evGet':{const nr=rooms[NURSE];if(nr.eggs>0){nr.eggs--;a.carry={ch:'o',col:hsl(48,40,92)};a.st='evPut';a.tgt='r0';}else if(nr.larva>0){nr.larva--;a.carry={ch:'c',col:hsl(45,45,80)};a.st='evPut';a.tgt='r0';}else{a.st='wander';a.wt=3;}break;}
+  case 'evPut':a.carry=null;m0.ev++;a.st='evGet';a.tgt='r'+NURSE;break;
+  case 'retGet':if(m0.ev>0){m0.ev--;a.carry={ch:'o',col:hsl(48,40,92)};a.st='retPut';a.tgt='r'+NURSE;}else resetTask(a);break;
+  case 'retPut':{a.carry=null;const nr=rooms[NURSE];if(nr.eggs<nr.floor.length*.6)nr.eggs++;else nr.larva++;a.st='retGet';a.tgt='r0';break;}
+  case 'bailGet':{for(let dr=-1;dr<=1;dr++)for(let dc=-2;dc<=2;dc++){if(!inb(a.c+dc,a.r+dr))continue;const i=idx(a.c+dc,a.r+dr);if(SUMP[i])continue;WT[i]*=.35;}
+   a.carry={ch:'~',col:hsl(200,80,62)};a.st='bailOut';a.tgt='ent';break;}
+  case 'bailOut':a.carry=null;spark(a.c,a.r-1,'.',hsl(200,80,70),.5,(rnd()-.5)*4,-2);if(flood>2){a.st='bailGet';a.tgt='water';}else resetTask(a);break;
+  case 'fight':break;
   case 'job':if(a.job)a.job.at=true;break;
+  default:resetTask(a);
  }
 }
 function recruit(){let k=0;for(const b of ants){if(k>=2)break;if(b.role==='idle'&&b.st==='wander'&&rnd()<.6){b.role='forage';resetTask(b);k++;}}}
@@ -140,58 +205,119 @@ function choose(a){
  const i=idx(a.c,a.r),opts=[];
  [[1,0],[-1,0],[0,1],[0,-1]].forEach(([x,y])=>{const c=a.c+x,r=a.r+y;if(inb(c,r)&&walk(idx(c,r)))opts.push([c,r,x,y]);});
  if(!opts.length)return null;
- if(a.alarm>.2){return opts[(rnd()*opts.length)|0];}
+ if(a.alarm>.25&&a.st!=='fight')return opts[(rnd()*opts.length)|0];
  const back=o=>o[0]===a.pc&&o[1]===a.pr;
  let F=null;
  if(a.st==='job'&&a.job&&a.job.F)F=a.job.F;else if(a.tgt)F=fields[a.tgt];
  if(F&&F[i]<INF){
   if(F[i]===0)return 'arrive';
   const better=opts.filter(o=>F[idx(o[0],o[1])]<F[i]);
-  if(better.length&&rnd()>.05){
-   // follow pheromone on surface when going to food
-   better.sort((p,q)=>PH[idx(q[0],q[1])]-PH[idx(p[0],p[1])]+(rnd()-.5)*.3);return better[0];}
+  if(better.length&&rnd()>.04){better.sort((p,q)=>PH[idx(q[0],q[1])]-PH[idx(p[0],p[1])]+(rnd()-.5)*.3);return better[0];}
  }
- // wander: avoid going back, prefer surface scouting
  const nb=opts.filter(o=>!back(o));const pool=nb.length?nb:opts;
- if(a.st==='scout'){const same=pool.filter(o=>o[2]===a.dc&&o[3]===0);if(same.length&&rnd()<.85)return same[0];}
+ if(a.st==='scout'||a.st==='leafCut'){const same=pool.filter(o=>o[2]===a.dc&&o[3]===0);if(same.length&&rnd()<.9)return same[0];}
  const keep=pool.filter(o=>o[2]===a.dc&&o[3]===a.dr);if(keep.length&&rnd()<.6)return keep[0];
  return pool[(rnd()*pool.length)|0];
 }
 function updAnts(dt){
- // queen
  queen.a+=dt;queen.t-=dt;if(queen.t<0){queen.t=7+rnd()*3;if(queen.eggs<5)queen.eggs++;}
- const nr=rooms[1];if(nr&&rnd()<dt*.08&&nr.eggs>0&&nr.larva<6){nr.eggs--;nr.larva++;}
- // ants
+ const nr=rooms[NURSE];if(rnd()<dt*.08&&nr.eggs>0&&nr.larva<6&&!rain){nr.eggs--;nr.larva++;}
+ const night=NT>.6;
  for(const a of ants){
-  a.fl+=dt*(a.alarm>.2?16:9);a.alarm=Math.max(0,a.alarm-dt*.55);a.greet-=dt;
+  a.fl+=dt*(a.alarm>.25?16:a.st==='sleeping'?0:9);a.alarm=Math.max(0,a.alarm-dt*.55);a.gcd-=dt;
   if(a.alarm>1.4)for(const b of ants){if(b!==a&&b.alarm<a.alarm-.6&&Math.abs(b.c-a.c)<=3&&Math.abs(b.r-a.r)<=2)b.alarm=a.alarm-.5;}
+  if(a.st==='haulBig')continue;
   if(a.st==='job'&&a.job&&a.job.at)continue;
-  if(a.rest>0){a.rest-=dt;continue;}
+  if(a.rest>0){a.rest-=dt;if(a.st==='sleeping'&&rnd()<dt*.7)spark(a.c+1,a.r-1,'z',hsl(220,40,75),1.4,.6,-.8);
+   if(a.rest<=0&&a.st==='sleeping'){if(night){a.rest=4+rnd()*6;}else resetTask(a);}continue;}
   if(a.pause>0){a.pause-=dt;continue;}
-  const sp=a.spd*(a.alarm>.2?2.2:1)*(a.carry?.85:1)*(NT>.6&&a.r<S?.6:1);
+  const wet=WT[idx(a.c,a.r)]>.3?.45:1;
+  const sp=a.spd*(a.alarm>.25?2.2:1)*(a.carry?.85:1)*wet*(a.role==='soldier'?.85:1);
   a.t+=dt*sp;
   if(a.t>=1){a.t=1;
-   if(a.st==='scout'||a.st==='wander'){a.wt-=1/sp;
+   if(a.st==='scout'||a.st==='wander'||a.st==='patrol'||a.st==='leafCut'){a.wt-=1/sp;
     if(a.st==='scout'){const near=sfood.find(f=>Math.abs(f.c-a.c)<9);if(near){a.st='toSF';a.tgt='sfood';}
+     else if(big&&Math.abs(big.c-a.c)<10&&big.car.length<big.need+2){a.st='toBig';a.tgt='big';}
      else if(a.wt<0){a.st='home';a.tgt='r0';}
      if(a.r===S-1&&(a.c<=1||a.c>=cols-2))a.dc*=-1;}
+    else if(a.st==='leafCut'){if(a.r===S-1&&(a.c<=1||a.c>=cols-2))a.dc*=-1;
+     if(a.wt<0&&a.r===S-1){a.pause=.8;a.carry={ch:',',col:hsl(100,60,48)};spark(a.c,a.r-1,'/',hsl(100,60,50),.4);a.st='toFarm';a.tgt='r'+FARM;}}
+    else if(a.st==='patrol'){if(a.wt<0){a.st='guard';a.tgt='guard';}}
     else if(a.wt<0){
      if(fields.new&&fields.new[idx(a.c,a.r)]<INF&&rnd()<.7){a.st='explore';a.tgt='new';}
+     else if(night&&a.role==='idle'&&rnd()<.7){a.st='sleepGo';a.tgt='r'+SLEEP;}
      else{a.wt=3+rnd()*6;if(rnd()<.3)a.rest=1+rnd()*2;
       if(a.r<S+1&&rnd()<.8){a.tgt='r'+((rnd()*3)|0);a.st='settle';}}}}
    const ch=choose(a);
-   if(ch==='arrive'){if(a.st==='settle'){a.st='wander';a.tgt=null;a.wt=4+rnd()*6;a.rest=1+rnd()*3;}else arrive(a);continue;}
+   if(ch==='arrive'){arrive(a);continue;}
    if(!ch){a.rest=.3;continue;}
    a.pc=a.c;a.pr=a.r;a.c=ch[0];a.r=ch[1];a.dc=ch[2];a.dr=ch[3];a.t=0;
    if(a.carry&&a.st==='home')PH[idx(a.c,a.r)]=Math.min(1,PH[idx(a.c,a.r)]+.6);
   }
  }
- // greeting
- for(const a of ants)a.gcd-=dt;
- for(let i=0;i<ants.length;i++){const a=ants[i];if(a.gcd>0||a.alarm>.2||a.rest>0||a.st==='job')continue;
-  for(let j=i+1;j<ants.length;j++){const b=ants[j];if(b.gcd>0||b.alarm>.2||b.rest>0||b.st==='job')continue;
-   if(Math.abs(a.c-b.c)+Math.abs(a.r-b.r)<=1&&(a.dc===-b.dc&&a.dr===-b.dr)){a.pause=b.pause=.6;a.gcd=b.gcd=4+rnd()*4;
-    spark((a.c+b.c)/2,(a.r+b.r)/2-.6,'"',hsl(40,50,85),.5);}}}
+ const busy=a=>a.gcd>0||a.alarm>.2||a.rest>0||a.st==='job'||a.st==='fight'||a.st==='haulBig';
+ for(let i=0;i<ants.length;i++){const a=ants[i];if(busy(a))continue;
+  for(let j=i+1;j<ants.length;j++){const b=ants[j];if(busy(b))continue;
+   if(Math.abs(a.c-b.c)+Math.abs(a.r-b.r)<=1&&a.dc===-b.dc&&a.dr===-b.dr){a.pause=b.pause=.6;a.gcd=b.gcd=4+rnd()*4;spark((a.c+b.c)/2,(a.r+b.r)/2-.6,'"',hsl(40,50,85),.5);}}}
+}
+
+// ---------- events: rain, intruders, army, big food, flight ----------
+function startEvent(){
+ const order=['rain','beetle','big','army','spider','rain','big'];const ev=order[evIdx++%order.length];
+ if(ev==='rain'){rain={t:0,dur:16+rnd()*6};for(const a of ants){if(a.r<S&&a.st!=='haulBig'){a.st='home';a.tgt='r0';}}
+  for(const a of ants)if(a.role==='nurse'){a.carry=null;a.st='evGet';a.tgt='r'+NURSE;}}
+ else if(ev==='beetle'||ev==='spider'){const L=rnd()<.5;foes.push({type:ev,c:L?0:cols-1,r:S-1,pc:L?0:cols-1,pr:S-1,t:1,spd:ev==='spider'?4.2:2.6,hp:ev==='spider'?6:9,dc:L?1:-1,dr:0,fl:0,hit:0,eat:0});dirty=true;}
+ else if(ev==='army'){for(let k=0;k<9;k++)foes.push({type:'black',c:cols-1-k*2,r:S-1,pc:cols-1-k*2,pr:S-1,t:1,spd:3+rnd(),hp:2.5,dc:-1,dr:0,fl:rnd()*9,hit:0,eat:0});dirty=true;}
+ else if(ev==='big'){if(!big){const L=rnd()<.5,tp=rnd()<.5?'hopper':'candy';big={c:L?cols*.12:cols*.82,len:tp==='hopper'?5:3,tp,need:tp==='hopper'?5:4,car:[]};dirty=true;}}
+}
+function updEvents(dt){
+ if(tN>nextEvent&&!rain&&!foes.length){startEvent();nextEvent=tN+40+rnd()*20;}
+ if(rain){rain.t+=dt;for(let k=0;k<2;k++)parts.push({k:'rain',x:rnd()*cols,y:0,vy:28+rnd()*10});
+  for(const c of [E,E+1]){const i=idx(c,S);if(TUN[i])WT[i]=Math.min(1,WT[i]+dt*3.2);}
+  if(rain.t>rain.dur){rain=null;}}
+ wTick+=dt;if(wTick>.066){wTick=0;stepWater();}
+ flood=0;for(let i=0;i<n;i++)if(!SUMP[i])flood+=WT[i];
+ watT-=dt;if(watT<0){watT=1;updWaterField();
+  if(!rain&&flood>2){let k=0;for(const a of ants){if(a.st==='bailGet'||a.st==='bailOut')k++;}
+   for(const a of ants){if(k>=6)break;if((a.role==='idle'||a.role==='forage')&&!['bailGet','bailOut','fight','job','haulBig','flyOut'].includes(a.st)){a.carry=null;a.st='bailGet';a.tgt='water';k++;}}}
+  if(!rain&&flood<1.5&&rooms[FOOD].ev>0){for(const a of ants)if(a.role==='nurse'&&(a.st==='evGet'||a.st==='wander'||a.st==='evPut')){a.carry=null;a.st='retGet';a.tgt='r0';}}
+  if(!rain&&rooms[FOOD].ev===0)for(const a of ants)if(a.role==='nurse'&&(a.st==='evGet'||a.st==='evPut'))resetTask(a);
+ }
+ foeT-=dt;if(foeT<0&&foes.length){foeT=.3;fields.foe=bfs(foes.map(f=>idx(f.c,f.r)));
+  for(const a of ants){if(['fight','job','haulBig','flyOut'].includes(a.st))continue;
+   const near=foes.some(f=>Math.abs(f.c-a.c)<10&&Math.abs(f.r-a.r)<6);
+   if(a.role==='soldier'||(near&&a.role!=='wing'&&a.role!=='nurse')){a.carry=null;a.st='fight';a.tgt='foe';a.rest=0;}}}
+ for(let k=foes.length-1;k>=0;k--){const f=foes[k];f.fl+=dt*12;f.hit-=dt;
+  f.t+=dt*f.spd*(WT[idx(f.c,f.r)]>.3?.4:1);
+  if(f.t>=1){f.t=1;const F=fields.r0,i=idx(f.c,f.r);
+   if(F&&F[i]===0){f.eat-=dt*8;if(f.eat<0){f.eat=1;if(rooms[FOOD].store>0){rooms[FOOD].store--;spark(f.c,f.r-1,',',hsl(42,70,62),.5,0,-2);}}}
+   else{const opts=[];[[1,0],[-1,0],[0,1],[0,-1]].forEach(([x,y])=>{const c=f.c+x,r=f.r+y;if(inb(c,r)&&walk(idx(c,r)))opts.push([c,r,x,y]);});
+    let pick=null;if(F&&F[i]<INF){const b=opts.filter(o=>F[idx(o[0],o[1])]<F[i]);if(b.length)pick=b[(rnd()*b.length)|0];}
+    if(!pick&&opts.length)pick=opts[(rnd()*opts.length)|0];
+    if(pick){f.pc=f.c;f.pr=f.r;f.c=pick[0];f.r=pick[1];f.dc=pick[2];f.dr=pick[3];f.t=0;}}}
+  let dmg=0;for(const a of ants){if(a.st!=='fight')continue;if(Math.abs(a.c-f.c)+Math.abs(a.r-f.r)<=1){dmg+=a.role==='soldier'?1.3:.5;a.pause=.25;a.biting=.3;
+    if(f.type==='black'){a.hp-=dt*.35;}else if(rnd()<dt*.6){a.alarm=2;}}}
+  if(dmg>0){f.hp-=dt*dmg;f.hit=.12;if(rnd()<dt*8)spark(f.c+(rnd()-.5)*2,f.r-.5,rnd()<.5?'*':'x',hsl(50,90,75),.25);if(f.t>.5)f.t=.5;}
+  if(f.hp<=0){foes.splice(k,1);const pcs=f.type==='black'?1:4;for(let q=0;q<pcs;q++){const c=cl(f.c+q-1,0,cols-1);if(walk(idx(c,f.r)))tfood.push({i:idx(c,f.r),ch:f.type==='black'?'8':q%2?'%':'#',col:f.type==='black'?hsl(230,10,40):hsl(150,30,40)});}
+   for(let q=0;q<8;q++)spark(f.c,f.r,'*',hsl(40,90,70),.5,(rnd()-.5)*10,(rnd()-.5)*6);dirty=true;}
+ }
+ for(let k=ants.length-1;k>=0;k--){const a=ants[k];if(a.biting>0)a.biting-=dt;if(a.hp<=0){spark(a.c,a.r,'x',hsl(0,60,60),.8);ants.splice(k,1);}}
+ if(!foes.length)for(const a of ants)if(a.st==='fight')resetTask(a);
+ if(tfood.length&&rnd()<dt*2){let k=0;for(const a of ants){if(k>=2)break;if((a.role==='forage'||a.role==='idle'||a.role==='soldier')&&['wander','patrol','guard','toEnt'].includes(a.st)){a.st='getTF';a.tgt='tfood';k++;}}}
+ if(big){const B=big;B.car=B.car.filter(a=>ants.includes(a)&&a.st==='haulBig');
+  if(B.car.length>=B.need){const dir=Math.sign(E-B.c),old=Math.round(B.c);B.c+=dir*1.4*dt;
+   if(Math.abs(B.c-E)<1){for(const a of B.car){a.st='toEnt';a.tgt='ent';a.carry=null;}sfood.push({c:E+2,amt:B.tp==='hopper'?10:8,ch:B.tp==='hopper'?'%':'@',col:B.tp==='hopper'?hsl(90,50,45):hsl(330,70,70)});big=null;dirty=true;}
+   else if(Math.round(B.c)!==old)dirty=true;}
+  if(big)B.car.forEach((a,q)=>{const side=q%2?-1:1,off=side<0?-1-((q/2)|0)%2:B.len+((q/2)|0)%2;a.c=Math.round(B.c)+off;a.r=S-1;a.pc=a.c;a.pr=a.r;a.t=1;a.dc=side<0?1:-1;a.dr=0;a.fl+=dt*(B.car.length>=B.need?12:20);});}
+ if(tN>nextFlight&&!rain&&NT<.3){nextFlight=tN+80+rnd()*40;for(const a of ants)if(a.role==='wing'){a.st='flyOut';a.tgt='ent';a.carry=null;}}
+ if(tN>nextFlight-40&&ants.filter(a=>a.role==='wing').length<2&&ants.length<64&&rooms[NURSE].floor.length)spawnAnt('wing',rooms[NURSE].floor[0]);
+}
+function stepWater(){
+ for(let r=rows-3;r>=S;r--)for(let c=0;c<cols;c++){const i=r*cols+c;if(!TUN[i])continue;let w=WT[i];if(w<.002){WT[i]=0;continue;}
+  const b=i+cols;if(TUN[b]&&WT[b]<1){const m=Math.min(w,1-WT[b]);WT[b]+=m;w-=m;}
+  if(w>.002){for(const j of [c>0?i-1:-1,c<cols-1?i+1:-1]){if(j<0||!TUN[j])continue;if(WT[j]<w){const m=(w-WT[j])*.3;WT[j]+=m;w-=m;}}}
+  if(!SUMP[i]&&!rain)w*=.9985;
+  WT[i]=w;}
 }
 
 // ---------- jobs: repair digging & room expansion ----------
@@ -203,30 +329,31 @@ function checkJobs(dt){
   for(const m of rooms){const i=m.floor.length?m.floor[0]:idx(Math.round(m.cx),Math.round(m.cy));if(D[i]>=INF){target={c:Math.round(m.cx),r:Math.round(m.cy)};break;}}
   if(!target){for(let i=0;i<n;i++)if(TUN[i]&&D[i]>=INF&&NEWT[i]>=0){target={c:i%cols,r:(i/cols)|0};break;}}
   if(target){let best=-1,bd=1e9;for(let i=0;i<n;i++){if(D[i]>=INF||!TUN[i])continue;const c=i%cols,r=(i/cols)|0;if(r<S)continue;const d=Math.hypot(c-target.c,(r-target.r)*asp);if(d<bd){bd=d;best=i;}}
-   if(best>=0){const j={c:best%cols,r:(best/cols)|0,tc:target.c,tr:target.r,ant:null,F:null,dt:0};
-    let ba=null,bdist=INF;for(const a of ants){const ai=idx(a.c,a.r);if(a.alarm>1)continue;const Fb=bfs([best]);const d=Fb[ai];if(d<bdist){bdist=d;ba=a;}break;}
-    const Fb=bfs([best]);for(const a of ants){const d=Fb[idx(a.c,a.r)];if(d<bdist){bdist=d;ba=a;}}
-    if(ba){j.ant=ba;j.F=Fb;ba.job=j;ba.st='job';ba.carry=null;ba.rest=0;jobs.push(j);}}}
+   if(best>=0){const j={c:best%cols,r:(best/cols)|0,tc:target.c,tr:target.r,ant:null,F:bfs([best]),dt:0,at:false};
+    let ba=null,bdist=INF;for(const a of ants){if(a.st==='fight'||a.st==='haulBig'||a.st==='flyOut')continue;const d=j.F[idx(a.c,a.r)];if(d<bdist){bdist=d;ba=a;}}
+    if(ba){j.ant=ba;ba.job=j;ba.st='job';ba.carry=null;ba.rest=0;jobs.push(j);}}}
  }
  for(let k=jobs.length-1;k>=0;k--){const j=jobs[k],a=j.ant;
-  if(!a||a.st!=='job'){jobs.splice(k,1);continue;}
+  if(!a||a.st!=='job'||!ants.includes(a)){jobs.splice(k,1);continue;}
   if(j.at){j.dt-=dt;if(j.dt<0){j.dt=.28;
-    const dx=j.tc-j.c,dy=j.tr-j.r;let nc=j.c,nr=j.r;
-    if(Math.abs(dx)>Math.abs(dy)*asp*.8)nc+=Math.sign(dx);else nr+=Math.sign(dy);
-    const was=inb(nc,nr)&&TUN[idx(nc,nr)];carve(nc,nr);if(nr!==j.r)carve(nc+1,nr);
+    const dx=j.tc-j.c,dy=j.tr-j.r,hz=Math.abs(dx)>Math.abs(dy)*asp*.8;
+    const cand=hz?[[Math.sign(dx),0],[0,Math.sign(dy)||1],[0,-(Math.sign(dy)||1)]]:[[0,Math.sign(dy)],[Math.sign(dx)||1,0],[-(Math.sign(dx)||1),0]];
+    let step=null;for(const [x,y] of cand){const nc=j.c+x,nr=j.r+y;if(inb(nc,nr)&&nr>S&&!OBS[idx(nc,nr)]){step=[nc,nr];break;}}
+    if(!step){jobs.splice(k,1);resetTask(a);continue;}
+    const [nc,nr]=step;const was=TUN[idx(nc,nr)];carve(nc,nr);if(nr!==j.r)carve(nc+1,nr);
     for(let q=0;q<3;q++)spark(nc+(rnd()-.5)*2,nr+(rnd()-.5),[':','.',','][q],hsl(30,40,52),.6,(rnd()-.5)*4,-2);
     a.pc=a.c;a.pr=a.r;a.c=nc;a.r=nr;a.t=0;a.dc=Math.sign(nc-a.pc);a.dr=Math.sign(nr-a.pr);
     j.c=nc;j.r=nr;
     const D=fields.ent;let joined=was&&D[idx(nc,nr)]>=INF;
     [[1,0],[-1,0],[0,1],[0,-1]].forEach(([x,y])=>{const i=idx(nc+x,nr+y);if(inb(nc+x,nr+y)&&TUN[i]&&D[i]>=INF)joined=true;});
-    if(joined||(Math.abs(j.tc-nc)<=1&&Math.abs(j.tr-nr)<=1)){dirty=true;recompute();a.job=null;resetTask(a);jobs.splice(k,1);}
+    if(joined||(Math.abs(j.tc-nc)<=1&&Math.abs(j.tr-nr)<=1)){dirty=true;recompute();resetTask(a);jobs.splice(k,1);}
   }}
  }
  for(let k=expands.length-1;k>=0;k--){const x=expands[k];x.p+=dt*.5;
   const rx=x.rx*Math.min(1,x.p),ry=x.ry*Math.min(1,x.p),id=rooms.length;
   for(let r=Math.floor(x.r-ry);r<=x.r+ry;r++)for(let c=Math.floor(x.c-rx);c<=x.c+rx;c++){const dx=(c-x.c)/Math.max(.5,rx),dy=(r-x.r)/Math.max(.5,ry);if(dx*dx+dy*dy<1&&inb(c,r)&&r>S+1){if(carve(c,r)&&rnd()<.3)spark(c,r,':',hsl(30,40,50),.5,(rnd()-.5)*3,-1);}}
   if(x.p>=1){for(let r=Math.floor(x.r-x.ry);r<=x.r+x.ry;r++)for(let c=Math.floor(x.c-x.rx);c<=x.c+x.rx;c++)if(inb(c,r)&&TUN[idx(c,r)]&&RID[idx(c,r)]<0)RID[idx(c,r)]=id;
-   const m={name:'store',cx:x.c,cy:x.r,rx:x.rx,ry:x.ry,store:0};rooms.push(m);dirty=true;recompute();
+   rooms.push({name:'store',cx:x.c,cy:x.r,rx:x.rx,ry:x.ry,store:0});dirty=true;recompute();
    let h=0;for(const a of ants){if(h>=3)break;if(a.role==='idle'){a.role='haul';a.room=id;resetTask(a);h++;}}
    expands.splice(k,1);}
  }
@@ -237,20 +364,21 @@ function dropFood(px,py){const c=cl(Math.round(px/cw),1,cols-2);for(let k=0;k<3;
 function addFood(c){c=cl(Math.round(c),1,cols-2);let f=sfood.find(f=>Math.abs(f.c-c)<=2);
  const types=[[',',hsl(42,70,62)],['o',hsl(36,60,58)],['*',hsl(50,80,66)],['%',hsl(20,55,55)]],t=types[(rnd()*types.length)|0];
  if(f)f.amt=Math.min(f.amt+1,14);else{sfood.push({c,amt:1,ch:t[0],col:t[1]});}dirty=true;}
-function spark(c,r,ch,col,life,vx,vy){if(parts.length<300)parts.push({k:'sp',x:c,y:r,ch,col,a:0,life,vx:vx||0,vy:vy||0});}
+function spark(c,r,ch,col,life,vx,vy){if(parts.length<360)parts.push({k:'sp',x:c,y:r,ch,col,a:0,life,vx:vx||0,vy:vy||0});}
 function updParts(dt){
  for(let k=parts.length-1;k>=0;k--){const p=parts[k];
-  if(p.k==='crumb'){p.vy+=40*dt;p.y+=p.vy*dt/asp*0+p.vy*dt*.1*asp;p.x+=p.vx*dt;if(p.y>=S-1){addFood(p.x);parts.splice(k,1);continue;}put(p.x,p.y,',',hsl(42,70,66));continue;}
+  if(p.k==='crumb'){p.vy+=40*dt;p.y+=p.vy*dt*.18;p.x+=p.vx*dt;if(p.y>=S-1){addFood(p.x);parts.splice(k,1);continue;}put(p.x,p.y,',',hsl(42,70,66));continue;}
+  if(p.k==='rain'){p.y+=p.vy*dt;if(p.y>=S-1){if(rnd()<.3)spark(p.x,S-1.4,'.',hsl(200,60,80),.15);parts.splice(k,1);continue;}put(p.x-p.y*.15,p.y,'|',hsl(205,60,78));continue;}
+  if(p.k==='fly'){p.a+=dt;p.y-=dt*(4+p.a*2);p.x+=Math.sin(p.a*5+p.ph)*dt*6+p.vx*dt;if(p.y<-2){parts.splice(k,1);continue;}
+   put(p.x,p.y,'8',hsl(12,70,50));put(p.x,p.y-1,((p.a*14)|0)%2?'^':'~',hsl(200,30,88));continue;}
   p.a+=dt;if(p.a>p.life){parts.splice(k,1);continue;}p.x+=p.vx*dt;p.y+=p.vy*dt;put(p.x,p.y,p.ch,p.col);}
- // worm
  const w=worm;w.h+=(Math.sin(tN*.7+w.sp)*.8+(rnd()-.5)*.6)*dt;const vx=Math.cos(w.h),vy=Math.sin(w.h);
  w.c+=vx*w.sp*dt;w.r+=vy*w.sp*dt/asp;
- if(w.r<S+4){w.h=Math.abs(w.h)%6.28;if(Math.sin(w.h)<0)w.h=-w.h;}if(w.r>rows-3)w.h=-Math.abs(w.h);
+ if(w.r<S+4)w.h=Math.abs(w.h);if(w.r>rows-5)w.h=-Math.abs(w.h);
  if(w.c<1)w.h=0;if(w.c>cols-2)w.h=Math.PI;
  const l=w.pts[0];if(!l||Math.hypot(l[0]-w.c,(l[1]-w.r)*asp)>.9){w.pts.unshift([w.c,w.r]);if(w.pts.length>8)w.pts.pop();}
  w.pts.forEach((p,k)=>putH(p[0],p[1],k===0?'@':k%2?'o':'0',hsl(345,45,58-k*2)));
- // mole
- if(!mole&&tN>nextMole){const d=rnd()<.5;mole={x:d?-8:cols+8,r:Math.round(rows*(.42+rnd()*.45)),d,a:0};}
+ if(!mole&&tN>nextMole){const d=rnd()<.5;mole={x:d?-8:cols+8,r:Math.round(rows*(.42+rnd()*.4)),d,a:0};}
  if(mole){mole.a+=dt;mole.x+=(mole.d?1:-1)*3.2*dt;const r=mole.r+Math.round(Math.sin(mole.a*1.2)*.6);
   const L=mole.d?["  .--._  "," (o    '>",'  "m""m"  ']:["  _.--.  ","<'    o) ",'  "m""m"  '],c0=Math.round(mole.x)-4;
   for(let k=0;k<3;k++)for(let q=0;q<L[k].length;q++){const ch=L[k][q];if(ch!==' ')putH(c0+q,r-1+k,ch,ch==='o'?hsl(0,0,15):ch==='>'||ch==='<'?hsl(350,55,72):ch==='"'||ch==='m'?hsl(350,40,70):hsl(260,10,34));}
@@ -258,45 +386,65 @@ function updParts(dt){
   for(const a of ants)if(Math.abs(a.c-mole.x)<8&&Math.abs(a.r-r)<5)a.alarm=Math.max(a.alarm,2);
   if(mole.x>cols+10||mole.x<-10){mole=null;nextMole=tN+45+rnd()*20;}}
  for(let k=dirtT.length-1;k>=0;k--)if(tN-dirtT[k].t>5)dirtT.splice(k,1);
- // auto drop
- if(tN>nextDrop){nextDrop=tN+18+rnd()*14;dropFood(W*(.1+rnd()*.8),(S-6)*chH);}
+ if(tN>nextDrop){nextDrop=tN+18+rnd()*14;if(!rain)dropFood(W*(.1+rnd()*.8),(S-6)*chH);}
+ if(rnd()<dt*.8){const m=rooms[SUMPR];spark(m.cx+(rnd()-.5)*m.rx,m.cy-m.ry,'.',hsl(200,70,70),.6,0,4);}
 }
 function put(x,y,ch,col){const c=Math.round(x),r=Math.round(y);if(!inb(c,r))return;const i=idx(c,r);OVk[i]=ch;OVc[i]=col;OVs[i]=fid;}
 function putH(x,y,ch,col){const c=Math.round(x),r=Math.round(y);if(!inb(c,r))return;const i=idx(c,r);OVk[i]=ch;OVc[i]=col;OVs[i]=fid;
  if(c>0)HL[i-1]=fid;if(c<cols-1)HL[i+1]=fid;if(r>0)HL[i-cols]=fid;if(r<rows-1)HL[i+cols]=fid;}
 
 // ---------- drawing of entities ----------
-function drawAnts(){
- // rooms content
- const R0=rooms[0];R0.floor.forEach((i,k)=>{const lay=R0.store>k?0:R0.store>k+R0.floor.length?1:-1;if(R0.store>k)put(i%cols,(i/cols)|0,'o0o.'[(k*7)%4],hsl(38+(k%3)*6,55,56));if(R0.store>k+R0.floor.length)put(i%cols,((i/cols)|0)-1,'o.0'[(k*5)%3],hsl(42,55,62));});
- const R1=rooms[1];R1.floor.forEach((i,k)=>{const c=i%cols,r=(i/cols)|0;
+function drawWorld(){
+ const R0=rooms[FOOD];R0.floor.forEach((i,k)=>{if(R0.store>k)put(i%cols,(i/cols)|0,'o0o.'[(k*7)%4],hsl(38+(k%3)*6,55,56));if(R0.store>k+R0.floor.length)put(i%cols,((i/cols)|0)-1,'o.0'[(k*5)%3],hsl(42,55,62));});
+ for(let k=0;k<R0.ev&&k<R0.floor.length;k++){const i=R0.floor[R0.floor.length-1-k];put(i%cols,((i/cols)|0)-1,'o',hsl(48,35,92));}
+ const R1=rooms[NURSE];R1.floor.forEach((i,k)=>{const c=i%cols,r=(i/cols)|0;
   if(k<R1.eggs)put(c,r,'o',hsl(48,35,90));else if(k<R1.eggs+R1.larva)put(c,r,((tN*2+k)|0)%2?'c':'C',hsl(45,45,80));});
- const R3=rooms[3];R3.floor.forEach((i,k)=>{if(R3.trash>k)put(i%cols,(i/cols)|0,'%;,'[(k*3)%3],hsl(30,12,40));});
- for(let k=4;k<rooms.length;k++){const m=rooms[k];(m.floor||[]).forEach((i,q)=>{if((m.store||0)>q)put(i%cols,(i/cols)|0,'o0'[(q)%2],hsl(40,55,58));});}
- // queen
- const Q=rooms[2];if(Q){const qc=Math.round(Q.cx)-5,qr=Math.round(Q.cy+Q.ry*.4);const pulse=((queen.a*1.5)|0)%2,ant2=((queen.a*2.3)|0)%2;
+ const R3=rooms[TRASH];R3.floor.forEach((i,k)=>{if(R3.trash>k)put(i%cols,(i/cols)|0,'%;,'[(k*3)%3],hsl(30,12,40));});
+ const RF=rooms[FARM];RF.floor.forEach((i,k)=>{if(RF.mulch>k)put(i%cols,(i/cols)|0,',;'[k%2],hsl(80,35,32));});
+ mush.forEach(m=>{m.g=Math.min(1,m.g+.004*(rooms[FARM].mulch/6)/60);const c=m.i%cols,r=(m.i/cols)|0;const ch=m.g<.35?'.':m.g<.7?'t':'T';put(c,r-1,ch,hsl(40,25,70+m.g*20));if(m.g>.7)put(c,r-2,'.',hsl(40,20,60+Math.sin(tN*2+c)*10));});
+ aphids.forEach((a,k)=>{a.o=Math.max(0,a.o-1/60);const rf=rooms[RANCH].floor;if(rnd()<.004){const j=rf.indexOf(a.i);a.i=rf[cl(j+(rnd()<.5?-1:1),0,rf.length-1)];}
+  put(a.i%cols,(a.i/cols)|0,a.o>.2?'O':((tN*3+k)|0)%3?'o':'0',hsl(95,60,a.o>.2?70:52));});
+ for(let k=BASE_ROOMS;k<rooms.length;k++){const m=rooms[k];(m.floor||[]).forEach((i,q)=>{if((m.store||0)>q)put(i%cols,(i/cols)|0,'o0'[(q)%2],hsl(40,55,58));});}
+ const Q=rooms[QUEEN];{const qc=Math.round(Q.cx)-5,qr=Math.round(Q.cy+Q.ry*.4);const pulse=((queen.a*1.5)|0)%2,ant2=((queen.a*2.3)|0)%2;
   const L=[ant2?"   \\ /     ":"   | |     "," <(@)=(##)=(#####)",pulse?"  /|\\ /|\\ /|\\ ":"  |/| |\\| /|\\ "];
   for(let k=0;k<3;k++)for(let q=0;q<L[k].length;q++){const ch=L[k][q];if(ch!==' ')putH(qc+q-3,qr-2+k,ch,ch==='@'?hsl(0,0,90):ch==='#'?hsl(14,60,46+pulse*4):hsl(16,50,40));}
   for(let e=0;e<queen.eggs;e++)put(qc+14+e,qr,'o',hsl(48,35,92));}
+ if(big){const B=big,c0=Math.round(B.c),strain=B.car.length<B.need;
+  const ln=B.tp==='hopper'?(B.c<E?'<##=x':'x=##>'):'(@)';for(let q=0;q<ln.length;q++)putH(c0+q,S-1,ln[q],B.tp==='hopper'?hsl(90,50,45):q===1?hsl(330,80,70):hsl(330,60,82));
+  if(B.tp==='hopper')putH(c0+1,S-2,'/',hsl(90,40,40));
+  if(strain&&B.car.length&&((tN*3)|0)%2)put(c0+1,S-3,'?',hsl(50,90,75));}
+ sfood.forEach(f=>{put(f.c,S-1,f.ch,f.col);if(f.amt>4)put(f.c,S-2,f.ch,f.col);if(f.amt>9)put(f.c+1,S-1,f.ch,f.col);});
+ tfood.forEach(f=>put(f.i%cols,(f.i/cols)|0,f.ch,f.col));
+ for(const f of foes){
+  const x=f.pc+(f.c-f.pc)*f.t,y=f.pr+(f.r-f.pr)*f.t,fl=((f.fl|0)%2),hit=f.hit>0;
+  if(f.type==='black'){const col=hit?hsl(0,0,95):hsl(230,12,f.r<S?18:46);put(x,y,fl?'8':'&',col);put(x+f.dc,y+f.dr,f.dc>0?'>':f.dc<0?'<':f.dr>0?'v':'^',col);}
+  else if(f.type==='beetle'){const col=hit?hsl(0,0,95):hsl(150,45,40);const s=f.dc>=0?'(#)>':'<(#)';for(let q=0;q<4;q++)putH(x-1+q,y,s[q],q===1||q===2?col:hsl(150,30,55));putH(x,y-1,fl?'"':"'",hsl(150,20,60));}
+  else{const col=hit?hsl(0,0,95):hsl(280,15,40);const s=fl?'}O{':')O(';for(let q=0;q<3;q++)putH(x-1+q,y,s[q],q===1?col:hsl(280,10,55));put(x,y-1,':',hsl(0,80,60));}
+ }
  for(const a of ants){
   const x=a.pc+(a.c-a.pc)*a.t,y=a.pr+(a.r-a.pr)*a.t;
-  const al=a.alarm>.2,body=((a.fl|0)%2)?'8':'&',col=al?hsl(2,90,64):hsl(12,80,a.r<S?34:60),hc=al?hsl(2,95,72):hsl(14,85,a.r<S?40:68);
-  let hx=x+a.dc,hy=y+a.dr,head=a.dc>0?'>':a.dc<0?'<':a.dr>0?'v':'^';
+  const al=a.alarm>.25,body=((a.fl|0)%2)?'8':'&',sol=a.role==='soldier',wing=a.role==='wing';
+  const col=al?hsl(2,90,64):sol?hsl(4,70,a.r<S?30:50):wing?hsl(20,60,a.r<S?40:64):hsl(12,80,a.r<S?34:60);
+  const hc=al?hsl(2,95,72):sol?hsl(6,75,a.r<S?36:58):hsl(14,85,a.r<S?40:68);
+  const hx=x+a.dc,hy=y+a.dr;
+  const head=sol?(a.biting>0?'X':'O'):a.dc>0?'>':a.dc<0?'<':a.dr>0?'v':'^';
+  if(a.st==='sleeping'){put(x,y,'-',col);put(hx,hy,'o',hc);continue;}
   put(x,y,body,col);put(hx,hy,head,hc);
+  if(wing)put(x,y-1,((a.fl*1.5)|0)%2?'^':'~',hsl(200,30,85));
   if(a.carry)put(hx+a.dc,hy+a.dr,a.carry.ch,a.carry.col);
   if(a.alarm>1.6)put(hx,hy-1,'!',hsl(50,95,70));
-  if(a.st==='job'&&a.t>=1&&((tN*6)|0)%2)put(hx+a.dc,hy+a.dr,'*',hsl(35,60,70));
+  if(a.st==='job'&&a.job&&a.job.at&&((tN*6)|0)%2)put(hx+a.dc,hy+a.dr,'*',hsl(35,60,70));
+  if(a.st==='haulBig'&&big&&big.car.length<big.need&&((tN*5+a.bo)|0)%2)put(x,y-1,'"',hsl(200,40,85));
  }
 }
 
 // ---------- render ----------
-let skyG=null;
 function resize(){
  W=innerWidth;H=innerHeight;dpr=Math.min(devicePixelRatio||1,2);
  cv.width=W*dpr|0;cv.height=H*dpr|0;ctx.setTransform(1,0,0,1,0,0);ctx.font='bold 20px '+FONT;
  const k=ctx.measureText('M').width/20||.6;
  cw=Math.max(5.4,Math.min(9,W/66));fs=cw/k;chH=fs*1.1;cols=Math.ceil(W/cw);rows=Math.ceil(H/chH);asp=chH/cw;
- fontStr='bold '+fs.toFixed(2)+'px '+FONT;gv.width=Math.ceil(W/4);gv.height=Math.ceil(H/4);skyG=null;
+ fontStr='bold '+fs.toFixed(2)+'px '+FONT;gv.width=Math.ceil(W/4);gv.height=Math.ceil(H/4);
  build();
 }
 function mixC(a,b,t){return'rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*t)).join(',')+')';}
@@ -306,50 +454,55 @@ function frame(now){
  for(let c=0;c<cols;c++)WX[c]*=Math.exp(-dt*1.2);
  for(let i=0;i<n;i++){if(PH[i]>0)PH[i]*=Math.exp(-dt*.05);if(FR[i]>0)FR[i]-=dt*.25;}
  if(dirty)recompute();
- checkJobs(dt);updAnts(dt);
- if(held&&!moved0&&tN-downT>.45&&!blocked){doBlock();}
- if(held&&heldSurf&&tN-lastFood>.25&&tN-downT>.3){lastFood=tN;dropFood(px0,py0);}
- updParts(dt);drawAnts();
- // background
+ updEvents(dt);checkJobs(dt);updAnts(dt);
+ if(held&&!moved0&&tN-downT>.45&&!blocked)doBlock();
+ if(held&&heldSurf&&!moved0&&tN-lastFood>.25&&tN-downT>.3){lastFood=tN;dropFood(px0,py0);}
+ updParts(dt);drawWorld();
  ctx.setTransform(dpr,0,0,dpr,0,0);
- const skyH=S*chH;const top=mixC([126,196,232],[8,14,40],NT),bot=mixC([214,232,214],[22,30,60],NT);
+ const rd=rain?Math.max(0,Math.min(1,rain.t/2,(rain.dur-rain.t)/2)):0,dk=Math.max(NT,rd*.55);
+ const skyH=S*chH;const top=mixC([126,196,232],[8,14,40],dk),bot=mixC([214,232,214],[22,30,60],dk);
  const g=ctx.createLinearGradient(0,0,0,skyH);g.addColorStop(0,top);g.addColorStop(1,bot);ctx.fillStyle=g;ctx.fillRect(0,0,W,skyH);
  const g2=ctx.createLinearGradient(0,skyH,0,H);g2.addColorStop(0,'#2a1a0e');g2.addColorStop(.5,'#1a0f08');g2.addColorStop(1,'#0c0704');ctx.fillStyle=g2;ctx.fillRect(0,skyH,W,H-skyH);
  ctx.font=fontStr;ctx.textBaseline='top';
  let lastCol='';const draw=(ch,col,c,r)=>{if(col!==lastCol){ctx.fillStyle=col;lastCol=col;}ctx.fillText(ch,c*cw,r*chH);};
- const wind=.5*Math.sin(tN*.6)+.3*Math.sin(tN*1.3);
+ const wind=.5*Math.sin(tN*.6)+.3*Math.sin(tN*1.3)+rd*1.2;
  for(let r=0;r<rows;r++){
-  const y=r*chH,dep=(r-S)/(rows-S);
+  const dep=(r-S)/(rows-S);
   for(let c=0;c<cols;c++){
    const i=r*cols+c;
    if(OVs[i]===fid){draw(OVk[i],OVc[i],c,r);continue;}
    const rn=RN[i];
    if(r<S){
     const h=GRS[c],tl=wind+WX[c]+Math.sin(tN*2+c*.4)*.2;
-    if(h>0&&r>=S-h){const lean=tl+(r===S-h?.4*Math.sign(tl):0);draw(lean>.55?'/':lean<-.55?'\\':'|',hsl(95+rn*25,55,(r===S-h?44:34)*(1-NT*.6)),c,r);continue;}
-    if(r===S-1&&hash(c,5)<.05){draw(hash(c,6)<.5?'*':'@',hsl(hash(c,7)<.5?350:50,80,62*(1-NT*.5)),c,r);continue;}
-    if(c>=E-3&&c<=E+4&&r===S-1&&!(c===E||c===E+1)){draw(c<E?'/':c>E+1?'\\':'_',hsl(32,45,50*(1-NT*.5)),c,r);continue;}
-    if(NT>.3&&r<S-4&&rn<.02){draw(rn<.006?'*':'.',hsl(55,40,60+Math.sin(tN*3+rn*900)*25),c,r);continue;}
-    if(NT<.6&&r<S-4){const cld=fbm(c*.07-tN*.03,r*.25)-.68;if(cld>0){draw(cld>.12?'O':cld>.06?'o':'.',`hsla(0,0%,100%,${(1-NT)*.85})`,c,r);continue;}}
-    if(HL[i]===fid)continue;
+    if(h>0&&r>=S-h){const lean=tl+(r===S-h?.4*Math.sign(tl):0);draw(lean>.55?'/':lean<-.55?'\\':'|',hsl(95+rn*25,55,(r===S-h?44:34)*(1-dk*.6)),c,r);continue;}
+    if(r===S-1&&hash(c,5)<.05){draw(hash(c,6)<.5?'*':'@',hsl(hash(c,7)<.5?350:50,80,62*(1-dk*.5)),c,r);continue;}
+    if(c>=E-3&&c<=E+4&&r===S-1&&!(c===E||c===E+1)){draw(c<E?'/':c>E+1?'\\':'_',hsl(32,45,50*(1-dk*.5)),c,r);continue;}
+    if(NT>.3&&!rain&&r<S-4&&rn<.02){draw(rn<.006?'*':'.',hsl(55,40,60+Math.sin(tN*3+rn*900)*25),c,r);continue;}
+    if((NT<.6||rd>0)&&r<S-4){const cld=fbm(c*.07-tN*.03,r*.25)-.68+rd*.45;if(cld>0){draw(cld>.12?'O':cld>.06?'o':'.',rd>.2?'hsla(220,10%,55%,.9)':`hsla(0,0%,100%,${((1-NT)*.85).toFixed(2)})`,c,r);continue;}}
     continue;}
    if(TUN[i]){
+    const w=WT[i];
+    if(w>.12){draw(w>.75?'=':w>.4?'~':'-',hsl(200,70,32+w*28+Math.sin(tN*3+c)*4),c,r);continue;}
     if(PH[i]>.15)draw('.',hsl(80,50,20+PH[i]*25),c,r);
     else if(NEWT[i]>=0)draw('.',hsl(40,40,24),c,r);
     continue;}
    if(HL[i]===fid)continue;
-   if(r===S){draw(['_','.',',','_'][(rn*4)|0],hsl(80-rn*40,40,38*(1-NT*.4)),c,r);continue;}
-   // soil
+   if(OBS[i]){let col=OBC[i],ch=OBK[i];
+    if(OBS[i]===4){ch=((c+(tN*4|0))%4)?'~':'-';col=hsl(200,70,40+Math.sin(tN*2+c*.5)*8);}
+    else if(OBS[i]===2&&Math.sin(tN*2.5)>.92)col=hsl(50,100,85);
+    draw(ch,col,c,r);continue;}
+   if(r===S){draw(['_','.',',','_'][(rn*4)|0],hsl(80-rn*40,40,38*(1-dk*.4)),c,r);continue;}
    let ch,col;const v=V[i];
    if(r<S+5&&hash(c,3)<.12&&GRS[c]>1){ch=rn<.5?'|':rn<.75?'/':'\\';col=hsl(38,35,34-dep*20);}
    else if(v>.74&&rn<.5){ch=rn<.25?'@':'O';col=hsl(30,8,34+v*10-dep*8);}
-   else{const q=cl(v*1.25+rn*.35-.2,0,.99);ch=[':',';','=','+','%','#','8'][(q*7)|0];const ed=(c>0&&TUN[i-1])||(c<cols-1&&TUN[i+1])||TUN[i-cols]||(i+cols<n&&TUN[i+cols]);col=hsl(24+v*14,ed?45:34,(ed?27:17)+q*(ed?12:9)-dep*6);}
+   else{const q=cl(v*1.25+rn*.35-.2,0,.99);ch=[':',';','=','+','%','#','8'][(q*7)|0];const ed=(c>0&&TUN[i-1])||(c<cols-1&&TUN[i+1])||TUN[i-cols]||(i+cols<n&&TUN[i+cols]);
+    const wet=rd>0&&r<S+4?6:0;col=hsl(24+v*14,ed?45:34,(ed?27:17)+q*(ed?12:9)-dep*6-wet);}
    if(FR[i]>0){col=hsl(32,45,24+FR[i]*30);ch=rn<.5?'#':'%';}
    draw(ch,col,c,r);
   }
  }
- for(const d of dirtT){const a=1-(tN-d.t)/5;if(a>0&&inb(d.c,d.r)&&!TUN[idx(d.c,d.r)])draw(':',hsl(30,40,22+a*24),d.c,d.r);}
- if(NT>.3){ctx.fillStyle=`rgba(230,235,255,${NT*.9})`;ctx.font='bold '+(fs*1.6).toFixed(1)+'px '+FONT;ctx.fillText('(',W*.15,chH*1.5);}
+ for(const d of dirtT){const a=1-(tN-d.t)/5;if(a>0&&inb(d.c,d.r)&&!TUN[idx(d.c,d.r)]&&!OBS[idx(d.c,d.r)])draw(':',hsl(30,40,22+a*24),d.c,d.r);}
+ if(NT>.3&&!rain){ctx.fillStyle=`rgba(230,235,255,${(NT*.9).toFixed(2)})`;ctx.font='bold '+(fs*1.6).toFixed(1)+'px '+FONT;ctx.fillText('(',W*.15,chH*1.5);}
  gx.clearRect(0,0,gv.width,gv.height);gx.drawImage(cv,0,0,gv.width,gv.height);
  requestAnimationFrame(frame);
 }
@@ -358,7 +511,7 @@ function frame(now){
 let held=false,touched=false,px0=0,py0=0,downT=0,moved0=false,blocked=false,heldSurf=false,lastFood=0,lastC=-1,lastR=-1,lastP=null;
 function cellAt(x,y){return[Math.floor(x/cw),Math.floor(y/chH)];}
 function doBlock(){blocked=true;const [c0,r0]=cellAt(px0,py0);if(r0<=S+1)return;
- for(let r=r0-2;r<=r0+2;r++)for(let c=c0-3;c<=c0+3;c++){if(!inb(c,r)||r<=S+1)continue;const dx=(c-c0)/3.2,dy=(r-r0)/2;if(dx*dx+dy*dy<=1){const i=idx(c,r);if(TUN[i]){TUN[i]=0;FR[i]=1;NEWT[i]=-1;PH[i]=0;}}}
+ for(let r=r0-2;r<=r0+2;r++)for(let c=c0-3;c<=c0+3;c++){if(!inb(c,r)||r<=S+1)continue;const dx=(c-c0)/3.2,dy=(r-r0)/2;if(dx*dx+dy*dy<=1){const i=idx(c,r);if(TUN[i]&&!SUMP[i]){TUN[i]=0;FR[i]=1;NEWT[i]=-1;PH[i]=0;WT[i]=0;}}}
  dirty=true;recompute();
  for(const a of ants){if(!walk(idx(a.c,a.r))){let best=null,bd=1e9;for(let r=a.r-4;r<=a.r+4;r++)for(let c=a.c-6;c<=a.c+6;c++){if(inb(c,r)&&walk(idx(c,r))){const d=Math.abs(c-a.c)+Math.abs(r-a.r);if(d<bd){bd=d;best=[c,r];}}}
    if(best){a.c=a.pc=best[0];a.r=a.pr=best[1];a.t=1;}}
@@ -367,9 +520,12 @@ function doBlock(){blocked=true;const [c0,r0]=cellAt(px0,py0);if(r0<=S+1)return;
  jobs.length=0;jobT=1.2;
  for(let q=0;q<10;q++)spark(c0+(rnd()-.5)*6,r0+(rnd()-.5)*3,[':','.','#'][q%3],hsl(32,45,55),.6,(rnd()-.5)*6,-3);
 }
-function alarmAt(x,y){const [c0,r0]=cellAt(x,y);let hit=false;for(const a of ants){if(Math.abs(a.c-c0)<=5&&Math.abs(a.r-r0)<=3){a.alarm=2.6;hit=true;}}return hit;}
+function alarmAt(x,y){const [c0,r0]=cellAt(x,y);for(const a of ants){if(Math.abs(a.c-c0)<=5&&Math.abs(a.r-r0)<=3)a.alarm=2.6;}
+ for(const f of foes)if(Math.abs(f.c-c0)<=3&&Math.abs(f.r-r0)<=2){f.hp-=1.2;f.hit=.2;spark(f.c,f.r-1,'*',hsl(50,90,75),.3);}}
 function digTo(x,y){const [c,r]=cellAt(x,y);if(r<=S)return;
- if(lastC>=0){carveLine(lastC,lastR,c,r,true);const st=Math.max(Math.abs(c-lastC),Math.abs(r-lastR)*2,1);for(let k=0;k<=st;k++){const cc_=Math.round(lastC+(c-lastC)*k/st),rr=Math.round(lastR+(r-lastR)*k/st);[0,1].forEach(o=>{if(inb(cc_+o,rr)&&NEWT[idx(cc_+o,rr)]<0&&TUN[idx(cc_+o,rr)]&&RID[idx(cc_+o,rr)]<0)NEWT[idx(cc_+o,rr)]=tN;});}}
+ if(lastC>=0){const st=Math.max(Math.abs(c-lastC),Math.abs(r-lastR)*2,1);
+  for(let k=0;k<=st;k++){const cc_=Math.round(lastC+(c-lastC)*k/st),rr=Math.round(lastR+(r-lastR)*k/st);
+   [0,1].forEach(o=>{if(!inb(cc_+o,rr)||rr<=S)return;const i=idx(cc_+o,rr);if(OBS[i]){if(rnd()<.2)spark(cc_+o,rr-1,'*',hsl(45,40,85),.3);return;}if(carve(cc_+o,rr)&&RID[i]<0)NEWT[i]=tN;});}}
  else{carve(c,r,tN);carve(c+1,r,tN);}
  if(rnd()<.5)spark(c,r-.5,[':','.',','][(rnd()*3)|0],hsl(30,40,55),.5,(rnd()-.5)*5,-3);
  lastC=c;lastR=r;}
@@ -389,6 +545,7 @@ addEventListener('pointercancel',()=>{held=false;heldSurf=false;lastC=-1;});
 addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('resize',resize);
 resize();requestAnimationFrame(frame);
+window._antEv=()=>{startEvent();nextEvent=tN+999;};
 })();
 </script>
 </body>
